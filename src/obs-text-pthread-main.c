@@ -6,6 +6,19 @@
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
+#define tp_data_get_color(s, c) tp_data_get_color2(s, c, c".alpha")
+static inline uint32_t tp_data_get_color2(obs_data_t *settings, const char *color, const char *alpha)
+{
+	return
+		((uint32_t)obs_data_get_int(settings, color) & 0xFFFFFF) |
+		((uint32_t)obs_data_get_int(settings, alpha) & 0xFF) << 24;
+}
+
+#define tp_data_add_color(props, c, t) { \
+	obs_properties_add_color(props, c, t); \
+	obs_properties_add_int_slider(props, c".alpha", obs_module_text("Alpha"), 0, 255, 1); \
+}
+
 static const char *tp_get_name(void *unused)
 {
 	UNUSED_PARAMETER(unused);
@@ -36,7 +49,8 @@ static void tp_destroy(void *data)
 
 	tp_thread_end(src);
 
-	if (src->text_file) bfree(src->text_file);
+	tp_config_destroy_member(&src->config);
+
 	if (src->textures) free_texture(src->textures);
 	if (src->tex_new) free_texture(src->tex_new);
 
@@ -52,23 +66,111 @@ static void tp_update(void *data, obs_data_t *settings)
 
 	pthread_mutex_lock(&src->config_mutex);
 
-	if (src->text_file) bfree(src->text_file);
-	src->text_file = bstrdup(obs_data_get_string(settings, "text_file"));
+	obs_data_t *font_obj = obs_data_get_obj(settings, "font");
+	if (font_obj) {
+		BFREE_IF_NONNULL(src->config.font_name);
+		src->config.font_name = bstrdup(obs_data_get_string(font_obj, "face"));
+
+		BFREE_IF_NONNULL(src->config.font_style);
+		src->config.font_style = bstrdup(obs_data_get_string(font_obj, "style"));
+
+		src->config.font_size = (uint32_t)obs_data_get_int(font_obj, "size");
+		src->config.font_flags = (uint32_t)obs_data_get_int(font_obj, "flags");
+
+		obs_data_release(font_obj);
+	}
+
+	BFREE_IF_NONNULL(src->config.text_file);
+	src->config.text_file = bstrdup(obs_data_get_string(settings, "text_file"));
+
+	src->config.color = tp_data_get_color(settings, "color");
+
+	src->config.width = (uint32_t)obs_data_get_int(settings, "width");
+	src->config.height = (uint32_t)obs_data_get_int(settings, "height");
+	src->config.shrink_size = obs_data_get_bool(settings, "shrink_size");
+	src->config.align = obs_data_get_int(settings, "align");
+
+	src->config.outline = obs_data_get_bool(settings, "outline");
+	src->config.outline_color = tp_data_get_color(settings, "outline_color");
+	src->config.outline_width = obs_data_get_int(settings, "outline_width");
+	src->config.outline_blur = obs_data_get_int(settings, "outline_blur");
+
+	src->config.shadow = obs_data_get_bool(settings, "shadow");
+	src->config.shadow_color = tp_data_get_color(settings, "shadow_color");
+	src->config.shadow_x = obs_data_get_int(settings, "shadow_x");
+	src->config.shadow_y = obs_data_get_int(settings, "shadow_y");
+
+	src->config_updated = true;
 
 	pthread_mutex_unlock(&src->config_mutex);
 }
 
 static void tp_get_defaults(obs_data_t *settings)
 {
+	obs_data_t *font_obj = obs_data_create();
+	// obs_data_set_default_string(font_obj, "face", DEFAULT_FACE); // TODO: if not set, I expect pango can choose something.
+	obs_data_set_default_int(font_obj, "size", 256);
+	obs_data_set_default_obj(settings, "font", font_obj);
+	obs_data_release(font_obj);
+
+	obs_data_set_default_int(settings, "color", 0xFFFFFFFF);
+	obs_data_set_default_int(settings, "color.alpha", 0xFF);
+
+	obs_data_set_default_int(settings, "width", 1920);
+	obs_data_set_default_int(settings, "height", 1080);
+	obs_data_set_default_bool(settings, "shrink_size", true);
+
+	obs_data_set_default_int(settings, "outline_color.alpha", 0xFF);
+
+	obs_data_set_default_int(settings, "shadow_x", 2);
+	obs_data_set_default_int(settings, "shadow_y", 3);
+	obs_data_set_default_int(settings, "shadow_color.alpha", 0xFF);
 }
 
 static obs_properties_t *tp_get_properties(void *unused)
 {
 	UNUSED_PARAMETER(unused);
 	obs_properties_t *props;
+	obs_property_t *prop;
 	props = obs_properties_create();
 
-	obs_properties_add_path(props, "text_file", obs_module_text("text file"), OBS_PATH_FILE, NULL, NULL);
+	obs_properties_add_font(props, "font", obs_module_text("Font"));
+
+	obs_properties_add_path(props, "text_file", obs_module_text("Text file"), OBS_PATH_FILE, NULL, NULL);
+
+	tp_data_add_color(props, "color", obs_module_text("Color"));
+
+	obs_properties_add_int(props, "width", obs_module_text("Width"), 1, 16384, 1);
+	obs_properties_add_int(props, "height", obs_module_text("Height"), 1, 16384, 1);
+	obs_properties_add_bool(props, "shrink_size", obs_module_text("Automatically shrink size"));
+
+	prop = obs_properties_add_list(props, "align", obs_module_text("Alignment"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, obs_module_text("Alignment.Left"), ALIGN_LEFT);
+	obs_property_list_add_int(prop, obs_module_text("Alignment.Center"), ALIGN_CENTER);
+	obs_property_list_add_int(prop, obs_module_text("Alignment.Right"), ALIGN_RIGHT);
+	obs_property_list_add_int(prop, obs_module_text("Alignment.Left.Justify"), ALIGN_LEFT | ALIGN_JUSTIFY);
+	obs_property_list_add_int(prop, obs_module_text("Alignment.Center.Justify"), ALIGN_CENTER | ALIGN_JUSTIFY);
+	obs_property_list_add_int(prop, obs_module_text("Alignment.Right.Justify"), ALIGN_RIGHT | ALIGN_JUSTIFY);
+
+	// TODO: line spacing
+	// TODO: ellipsize
+	// TODO: auto_dir
+	// TODO: wrap
+	// TODO: single-paragraphi?
+	// TODO: vertical
+	// TODO: markup-option (use set_text or set_markup)
+
+	prop = obs_properties_add_bool(props, "outline", obs_module_text("Outline"));
+	tp_data_add_color(props, "outline_color", obs_module_text("Outline color"));
+	obs_properties_add_int(props, "outline_width", obs_module_text("Outline width"), 0, 65536, 1);
+	obs_properties_add_int(props, "outline_blur", obs_module_text("Outline blur"), 0, 65536, 1);
+
+	prop = obs_properties_add_bool(props, "shadow", obs_module_text("Shadow"));
+	tp_data_add_color(props, "shadow_color", obs_module_text("Shadow color"));
+	obs_properties_add_int(props, "shadow_x", obs_module_text("Shadow offset x"), -65536, 65536, 1);
+	obs_properties_add_int(props, "shadow_y", obs_module_text("Shadow offset y"), -65536, 65536, 1);
+
+	// TODO: hide outline and shadow parameters if disabled.
 
 	return props;
 }

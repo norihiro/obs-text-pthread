@@ -13,13 +13,43 @@ struct tp_texture
 	struct tp_texture *next;
 };
 
+enum {
+	ALIGN_LEFT = 0,
+	ALIGN_CENTER = 1,
+	ALIGN_RIGHT = 2,
+	ALIGN_JUSTIFY = 4,
+};
+
+struct tp_config
+{
+	char *font_name;
+	char *font_style;
+	uint32_t font_size;
+	uint32_t font_flags;
+	// TODO: font weight stretch gravity
+	char *text_file;
+	uint32_t color;
+	uint32_t width, height;
+	bool shrink_size;
+	uint32_t align;
+	bool outline;
+	uint32_t outline_color;
+	uint32_t outline_width;
+	uint32_t outline_blur;
+	// TODO: round or rectangle or orthogonal.
+	bool shadow;
+	uint32_t shadow_color;
+	int32_t shadow_x, shadow_y;
+};
+
 struct tp_source
 {
 	// config
 	// write from main
 	// read from thread
 	pthread_mutex_t config_mutex;
-	char *text_file;
+	struct tp_config config;
+	bool config_updated;
 	volatile bool running;
 
 	// new texture
@@ -37,6 +67,16 @@ struct tp_source
 
 void tp_thread_start(struct tp_source *src);
 void tp_thread_end(struct tp_source *src);
+
+#define BFREE_IF_NONNULL(x) if (x) { bfree(x); (x) = NULL; }
+
+static inline void tp_config_destroy_member(struct tp_config *c)
+{
+	BFREE_IF_NONNULL(c->font_name);
+	BFREE_IF_NONNULL(c->font_style);
+	BFREE_IF_NONNULL(c->text_file);
+}
+
 
 static inline void free_texture(struct tp_texture *t)
 {
