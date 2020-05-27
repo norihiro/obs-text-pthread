@@ -118,6 +118,8 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	pango_layout_set_justify(layout, !!(config->align & ALIGN_JUSTIFY));
 
 	pango_layout_set_width(layout, body_width<<10);
+	pango_layout_set_wrap(layout, config->wrapmode);
+	pango_layout_set_spacing(layout, config->spacing * PANGO_SCALE);
 
 	pango_layout_set_markup(layout, text, -1);
 
@@ -150,6 +152,7 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	cairo_surface_destroy(surface);
 
 	if (config->shrink_size) {
+		// TODO: if the alignment is center or right, we need to add offset.
 		n->width = PANGO_PIXELS_FLOOR(ink_rect.width) + outline_width_blur*2 + shadow_abs_x;
 		if (n->width > surface_width) n->width = surface_width;
 		n->height = PANGO_PIXELS_FLOOR(ink_rect.height) + outline_width_blur*2 + shadow_abs_y;
@@ -171,6 +174,21 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	return n;
 }
 
+bool tp_compare_stat(const struct stat *a, const struct stat *b)
+{
+	if (a->st_ino   != b->st_ino   ) return true;
+	if (a->st_size  != b->st_size  ) return true;
+#ifdef __USE_XOPEN2K8
+	if (memcmp(&a->st_mtim, &b->st_mtim, sizeof(struct timespec))) return true;
+#else // __USE_XOPEN2K8
+	if (a->st_mtime != b->st_mtime ) return true;
+#ifdef _STATBUF_ST_NSEC
+	if (a->st_mtime_nsec != b->st_mtime_nsec) return true;
+#endif // _STATBUF_ST_NSEC
+#endif // __USE_XOPEN2K8
+	return false;
+}
+
 static void *tp_thread_main(void *data)
 {
 	struct tp_source *src = data;
@@ -179,8 +197,7 @@ static void *tp_thread_main(void *data)
 	struct tp_config config_prev = {0};
 
 	while (src->running) {
-		struct timespec tv = {0, 33 * 1000 * 1000};
-		nanosleep(&tv, NULL);
+		os_sleep_ms(33);
 
 		pthread_mutex_lock(&src->config_mutex);
 
@@ -204,8 +221,7 @@ static void *tp_thread_main(void *data)
 		// check file status
 		struct stat st = {0};
 		os_stat(config_prev.text_file, &st);
-		memset(&st.st_atim, 0, sizeof(st.st_atim)); // ignore atime
-		if(memcmp(&st, &st_prev, sizeof(struct stat))) {
+		if(tp_compare_stat(&st, &st_prev)) {
 			need_draw = 1;
 			memcpy(&st_prev, &st, sizeof(struct stat));
 		}

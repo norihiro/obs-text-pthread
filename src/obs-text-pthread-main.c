@@ -89,6 +89,8 @@ static void tp_update(void *data, obs_data_t *settings)
 	src->config.height = (uint32_t)obs_data_get_int(settings, "height");
 	src->config.shrink_size = obs_data_get_bool(settings, "shrink_size");
 	src->config.align = obs_data_get_int(settings, "align");
+	src->config.wrapmode = obs_data_get_int(settings, "wrapmode");
+	src->config.spacing = obs_data_get_int(settings, "spacing");
 
 	src->config.outline = obs_data_get_bool(settings, "outline");
 	src->config.outline_color = tp_data_get_color(settings, "outline_color");
@@ -119,6 +121,8 @@ static void tp_get_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "width", 1920);
 	obs_data_set_default_int(settings, "height", 1080);
 	obs_data_set_default_bool(settings, "shrink_size", true);
+	obs_data_set_default_int(settings, "wrapmode", PANGO_WRAP_WORD);
+	obs_data_set_default_int(settings, "spacing", 0);
 
 	obs_data_set_default_int(settings, "outline_color.alpha", 0xFF);
 
@@ -152,11 +156,16 @@ static obs_properties_t *tp_get_properties(void *unused)
 	obs_property_list_add_int(prop, obs_module_text("Alignment.Center.Justify"), ALIGN_CENTER | ALIGN_JUSTIFY);
 	obs_property_list_add_int(prop, obs_module_text("Alignment.Right.Justify"), ALIGN_RIGHT | ALIGN_JUSTIFY);
 
-	// TODO: line spacing
+	prop = obs_properties_add_list(props, "wrapmode", obs_module_text("Wrap text"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, obs_module_text("Wrapmode.Word"), PANGO_WRAP_WORD);
+	obs_property_list_add_int(prop, obs_module_text("Wrapmode.Char"), PANGO_WRAP_CHAR);
+	obs_property_list_add_int(prop, obs_module_text("Wrapmode.WordChar"), PANGO_WRAP_WORD_CHAR);
+
+	obs_properties_add_int(props, "spacing", obs_module_text("Line spacing"), -65536, +65536, 1);
+
 	// TODO: ellipsize
 	// TODO: auto_dir
-	// TODO: wrap
-	// TODO: single-paragraphi?
+	// TODO: single-paragraph?
 	// TODO: vertical
 	// TODO: markup-option (use set_text or set_markup)
 
@@ -226,6 +235,20 @@ static void tp_render(void *data, gs_effect_t *effect)
 
 	// TODO: implement to draw all textures with alpha.
 
+	if (src->textures) {
+		struct tp_texture *t = src->textures;
+
+		gs_reset_blend_state();
+		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), t->tex);
+		gs_draw_sprite(t->tex, 0, t->width, t->height);
+	}
+}
+
+static void tp_tick(void *data, float seconds)
+{
+	UNUSED_PARAMETER(seconds);
+	struct tp_source *src = data;
+
 	if (pthread_mutex_trylock(&src->tex_mutex)==0) {
 		if (src->tex_new) {
 			if (src->textures) free_texture(src->textures);
@@ -235,14 +258,6 @@ static void tp_render(void *data, gs_effect_t *effect)
 			tp_surface_to_texture(src->textures);
 		}
 		pthread_mutex_unlock(&src->tex_mutex);
-	}
-
-	if (src->textures) {
-		struct tp_texture *t = src->textures;
-
-		gs_reset_blend_state();
-		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), t->tex);
-		gs_draw_sprite(t->tex, 0, t->width, t->height);
 	}
 }
 
@@ -259,6 +274,7 @@ static struct obs_source_info tp_src_info = {
 	.get_width = tp_get_width,
 	.get_height = tp_get_height,
 	.video_render = tp_render,
+	.video_tick = tp_tick,
 };
 
 bool obs_module_load(void)

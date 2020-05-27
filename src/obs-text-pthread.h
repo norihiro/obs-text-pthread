@@ -32,6 +32,8 @@ struct tp_config
 	uint32_t width, height;
 	bool shrink_size;
 	uint32_t align;
+	int wrapmode;
+	int spacing;
 	bool outline;
 	uint32_t outline_color;
 	uint32_t outline_width;
