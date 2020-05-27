@@ -1,6 +1,7 @@
 #include <obs-module.h>
 #include <util/platform.h>
 #include <time.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <string.h>
 #include <pango/pangocairo.h>
@@ -257,7 +258,7 @@ static void *tp_thread_main(void *data)
 
 void tp_thread_start(struct tp_source *src)
 {
-	// TODO: reduce priority of this thread
+	nice(19);
 
 	src->running = true;
 	pthread_create(&src->thread, NULL, tp_thread_main, src);
