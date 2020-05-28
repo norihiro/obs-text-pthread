@@ -131,6 +131,36 @@ static void tp_get_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "shadow_color.alpha", 0xFF);
 }
 
+#define tp_set_visible(props, name, en) \
+{ \
+	obs_property_t *prop = obs_properties_get(props, name); \
+	if (prop) obs_property_set_visible(prop, en); \
+}
+
+static bool tp_prop_outline_changed(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
+{
+	UNUSED_PARAMETER(property);
+	obs_property_t *prop;
+
+	bool en = settings ? obs_data_get_bool(settings, "outline") : false;
+	tp_set_visible(props, "outline_color", en);
+	tp_set_visible(props, "outline_color.alpha", en);
+	tp_set_visible(props, "outline_width", en);
+	tp_set_visible(props, "outline_blur", en);
+}
+
+static bool tp_prop_shadow_changed(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
+{
+	UNUSED_PARAMETER(property);
+	obs_property_t *prop;
+
+	bool en = settings ? obs_data_get_bool(settings, "shadow") : false;
+	tp_set_visible(props, "shadow_color", en);
+	tp_set_visible(props, "shadow_color.alpha", en);
+	tp_set_visible(props, "shadow_x", en);
+	tp_set_visible(props, "shadow_y", en);
+}
+
 static obs_properties_t *tp_get_properties(void *unused)
 {
 	UNUSED_PARAMETER(unused);
@@ -170,16 +200,17 @@ static obs_properties_t *tp_get_properties(void *unused)
 	// TODO: markup-option (use set_text or set_markup)
 
 	prop = obs_properties_add_bool(props, "outline", obs_module_text("Outline"));
+	obs_property_set_modified_callback(prop, tp_prop_outline_changed);
 	tp_data_add_color(props, "outline_color", obs_module_text("Outline color"));
 	obs_properties_add_int(props, "outline_width", obs_module_text("Outline width"), 0, 65536, 1);
 	obs_properties_add_int(props, "outline_blur", obs_module_text("Outline blur"), 0, 65536, 1);
 
 	prop = obs_properties_add_bool(props, "shadow", obs_module_text("Shadow"));
+	obs_property_set_modified_callback(prop, tp_prop_shadow_changed);
 	tp_data_add_color(props, "shadow_color", obs_module_text("Shadow color"));
 	obs_properties_add_int(props, "shadow_x", obs_module_text("Shadow offset x"), -65536, 65536, 1);
 	obs_properties_add_int(props, "shadow_y", obs_module_text("Shadow offset y"), -65536, 65536, 1);
 
-	// TODO: hide outline and shadow parameters if disabled.
 
 	return props;
 }
