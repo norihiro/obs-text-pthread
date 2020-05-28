@@ -37,11 +37,14 @@ struct tp_config
 	uint32_t font_flags;
 	// TODO: font weight stretch gravity
 	char *text_file;
+	bool markup;
 	uint32_t color;
 	uint32_t width, height;
 	bool shrink_size;
 	uint32_t align;
+	bool auto_dir;
 	int wrapmode;
+	int ellipsize;
 	int spacing;
 	bool outline;
 	uint32_t outline_color;

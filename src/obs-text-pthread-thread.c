@@ -119,10 +119,12 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	pango_layout_set_justify(layout, !!(config->align & ALIGN_JUSTIFY));
 
 	pango_layout_set_width(layout, body_width<<10);
+	pango_layout_set_auto_dir(layout, config->auto_dir);
 	pango_layout_set_wrap(layout, config->wrapmode);
+	pango_layout_set_ellipsize(layout, config->ellipsize);
 	pango_layout_set_spacing(layout, config->spacing * PANGO_SCALE);
 
-	pango_layout_set_markup(layout, text, -1);
+	(config->markup ? pango_layout_set_markup : pango_layout_set_text)(layout, text, -1);
 
 	PangoRectangle ink_rect, logical_rect;
 	pango_layout_get_extents(layout, &ink_rect, &logical_rect);

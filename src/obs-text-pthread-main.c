@@ -84,6 +84,7 @@ static void tp_update(void *data, obs_data_t *settings)
 
 	BFREE_IF_NONNULL(src->config.text_file);
 	src->config.text_file = bstrdup(obs_data_get_string(settings, "text_file"));
+	src->config.markup = obs_data_get_bool(settings, "markup");
 
 	src->config.color = tp_data_get_color(settings, "color");
 
@@ -91,7 +92,9 @@ static void tp_update(void *data, obs_data_t *settings)
 	src->config.height = (uint32_t)obs_data_get_int(settings, "height");
 	src->config.shrink_size = obs_data_get_bool(settings, "shrink_size");
 	src->config.align = obs_data_get_int(settings, "align");
+	src->config.auto_dir = obs_data_get_bool(settings, "auto_dir");
 	src->config.wrapmode = obs_data_get_int(settings, "wrapmode");
+	src->config.ellipsize = obs_data_get_int(settings, "ellipsize");
 	src->config.spacing = obs_data_get_int(settings, "spacing");
 
 	src->config.outline = obs_data_get_bool(settings, "outline");
@@ -120,13 +123,17 @@ static void tp_get_defaults(obs_data_t *settings)
 	obs_data_set_default_obj(settings, "font", font_obj);
 	obs_data_release(font_obj);
 
+	obs_data_set_default_bool(settings, "markup", true);
+
 	obs_data_set_default_int(settings, "color", 0xFFFFFFFF);
 	obs_data_set_default_int(settings, "color.alpha", 0xFF);
 
 	obs_data_set_default_int(settings, "width", 1920);
 	obs_data_set_default_int(settings, "height", 1080);
 	obs_data_set_default_bool(settings, "shrink_size", true);
+	obs_data_set_default_bool(settings, "auto_dir", true);
 	obs_data_set_default_int(settings, "wrapmode", PANGO_WRAP_WORD);
+	obs_data_set_default_int(settings, "ellipsize", PANGO_ELLIPSIZE_NONE);
 	obs_data_set_default_int(settings, "spacing", 0);
 
 	obs_data_set_default_int(settings, "outline_color.alpha", 0xFF);
@@ -176,6 +183,7 @@ static obs_properties_t *tp_get_properties(void *unused)
 	obs_properties_add_font(props, "font", obs_module_text("Font"));
 
 	obs_properties_add_path(props, "text_file", obs_module_text("Text file"), OBS_PATH_FILE, NULL, NULL);
+	obs_properties_add_bool(props, "markup", obs_module_text("Pango mark-up"));
 
 	tp_data_add_color(props, "color", obs_module_text("Color"));
 
@@ -191,18 +199,22 @@ static obs_properties_t *tp_get_properties(void *unused)
 	obs_property_list_add_int(prop, obs_module_text("Alignment.Center.Justify"), ALIGN_CENTER | ALIGN_JUSTIFY);
 	obs_property_list_add_int(prop, obs_module_text("Alignment.Right.Justify"), ALIGN_RIGHT | ALIGN_JUSTIFY);
 
+	obs_properties_add_bool(props, "auto_dir", obs_module_text("Calculate the bidirectonal base direction"));
+
 	prop = obs_properties_add_list(props, "wrapmode", obs_module_text("Wrap text"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Wrapmode.Word"), PANGO_WRAP_WORD);
 	obs_property_list_add_int(prop, obs_module_text("Wrapmode.Char"), PANGO_WRAP_CHAR);
 	obs_property_list_add_int(prop, obs_module_text("Wrapmode.WordChar"), PANGO_WRAP_WORD_CHAR);
 
+	prop = obs_properties_add_list(props, "ellipsize", obs_module_text("Ellipsize"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, obs_module_text("Ellipsize.None"), PANGO_ELLIPSIZE_NONE);
+	obs_property_list_add_int(prop, obs_module_text("Ellipsize.Start"), PANGO_ELLIPSIZE_START);
+	obs_property_list_add_int(prop, obs_module_text("Ellipsize.Middle"), PANGO_ELLIPSIZE_MIDDLE);
+	obs_property_list_add_int(prop, obs_module_text("Ellipsize.End"), PANGO_ELLIPSIZE_END);
+
 	obs_properties_add_int(props, "spacing", obs_module_text("Line spacing"), -65536, +65536, 1);
 
-	// TODO: ellipsize
-	// TODO: auto_dir
-	// TODO: single-paragraph?
 	// TODO: vertical
-	// TODO: markup-option (use set_text or set_markup)
 
 	prop = obs_properties_add_bool(props, "outline", obs_module_text("Outline"));
 	obs_property_set_modified_callback(prop, tp_prop_outline_changed);
