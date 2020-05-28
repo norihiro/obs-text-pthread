@@ -29,6 +29,13 @@ enum {
 	ALIGN_JUSTIFY = 4,
 };
 
+enum {
+	OUTLINE_ROUND = 0,
+	OUTLINE_BEVEL = 1,
+	OUTLINE_RECT = 2,
+	OUTLINE_SHARP = 4,
+};
+
 struct tp_config
 {
 	char *font_name;
@@ -50,7 +57,7 @@ struct tp_config
 	uint32_t outline_color;
 	uint32_t outline_width;
 	uint32_t outline_blur;
-	// TODO: round or rectangle or orthogonal.
+	uint32_t outline_shape;
 	bool shadow;
 	uint32_t shadow_color;
 	int32_t shadow_x, shadow_y;

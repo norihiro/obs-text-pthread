@@ -36,7 +36,7 @@ static double u32toFG(uint32_t u) { return (double)((u >>  8) & 0xFF) / 256.; }
 static double u32toFB(uint32_t u) { return (double)((u >> 16) & 0xFF) / 256.; }
 static double u32toFA(uint32_t u) { return (double)((u >> 24) & 0xFF) / 256.; }
 
-static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, int offset_x, int offset_y, uint32_t color, int width, int blur)
+static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_config *config, int offset_x, int offset_y, uint32_t color, int width, int blur)
 {
 	for (int b = blur; b>=-blur; b--) {
 		double a = u32toFA(color) * (blur ? 0.5 - b * 0.5 / blur : 1.0);
@@ -46,7 +46,20 @@ static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, int offset_x, int o
 		cairo_set_source_rgba(cr, u32toFR(color), u32toFG(color), u32toFB(color), a);
 		if(w>0) {
 			cairo_set_line_width(cr, w);
-			cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
+			if (config->outline_shape & OUTLINE_BEVEL) {
+				cairo_set_line_join(cr, CAIRO_LINE_JOIN_BEVEL);
+			}
+			else if(config->outline_shape & OUTLINE_RECT) {
+				cairo_set_line_join(cr, CAIRO_LINE_JOIN_MITER);
+				cairo_set_miter_limit(cr, 1.999);
+			}
+			else if(config->outline_shape & OUTLINE_SHARP) {
+				cairo_set_line_join(cr, CAIRO_LINE_JOIN_MITER);
+				cairo_set_miter_limit(cr, 3.999);
+			}
+			else {
+				cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
+			}
 			pango_cairo_layout_path(cr, layout);
 			cairo_stroke(cr);
 		}
@@ -72,6 +85,8 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	int outline_width = config->outline ? config->outline_width : 0;
 	int outline_blur = config->outline ? config->outline_blur : 0;
 	int outline_width_blur = outline_width + outline_blur;
+	if (config->outline_shape & OUTLINE_SHARP)
+		outline_width_blur *= 2;
 	int shadow_abs_x = config->shadow ? abs(config->shadow_x) : 0;
 	int shadow_abs_y = config->shadow ? abs(config->shadow_y) : 0;
 	int offset_x = outline_width_blur + (config->shadow && config->shadow_x<0 ? -config->shadow_x : 0);
@@ -132,21 +147,21 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	if (shadow_abs_x || shadow_abs_y) {
 		cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
 		if(outline_width_blur)
-			tp_stroke_path(cr, layout, offset_x + config->shadow_x, offset_y + config->shadow_y, config->shadow_color, outline_width, outline_blur);
-		tp_stroke_path(cr, layout, offset_x + config->shadow_x, offset_y + config->shadow_y, config->shadow_color, 0, 0);
+			tp_stroke_path(cr, layout, config, offset_x + config->shadow_x, offset_y + config->shadow_y, config->shadow_color, outline_width, outline_blur);
+		tp_stroke_path(cr, layout, config, offset_x + config->shadow_x, offset_y + config->shadow_y, config->shadow_color, 0, 0);
 	}
 
 	if (outline_width_blur > 0) {
 		debug("stroking outline width=%d\n", outline_width);
 		cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-		tp_stroke_path(cr, layout, offset_x, offset_y, config->outline_color, outline_width, outline_blur);
+		tp_stroke_path(cr, layout, config, offset_x, offset_y, config->outline_color, outline_width, outline_blur);
 	}
 
 	if(config->shadow || config->outline)
 		cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
 	else
 		cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-	tp_stroke_path(cr, layout, offset_x, offset_y, config->color, 0, 0);
+	tp_stroke_path(cr, layout, config, offset_x, offset_y, config->color, 0, 0);
 
 	cairo_surface_flush(surface);
 

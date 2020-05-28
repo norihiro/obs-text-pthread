@@ -101,6 +101,7 @@ static void tp_update(void *data, obs_data_t *settings)
 	src->config.outline_color = tp_data_get_color(settings, "outline_color");
 	src->config.outline_width = obs_data_get_int(settings, "outline_width");
 	src->config.outline_blur = obs_data_get_int(settings, "outline_blur");
+	src->config.outline_shape = obs_data_get_int(settings, "outline_shape");
 
 	src->config.shadow = obs_data_get_bool(settings, "shadow");
 	src->config.shadow_color = tp_data_get_color(settings, "shadow_color");
@@ -159,6 +160,7 @@ static bool tp_prop_outline_changed(obs_properties_t *props, obs_property_t *pro
 	tp_set_visible(props, "outline_color.alpha", en);
 	tp_set_visible(props, "outline_width", en);
 	tp_set_visible(props, "outline_blur", en);
+	tp_set_visible(props, "outline_shape", en);
 }
 
 static bool tp_prop_shadow_changed(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
@@ -221,6 +223,11 @@ static obs_properties_t *tp_get_properties(void *unused)
 	tp_data_add_color(props, "outline_color", obs_module_text("Outline color"));
 	obs_properties_add_int(props, "outline_width", obs_module_text("Outline width"), 0, 65536, 1);
 	obs_properties_add_int(props, "outline_blur", obs_module_text("Outline blur"), 0, 65536, 1);
+	prop = obs_properties_add_list(props, "outline_shape", obs_module_text("Outline shape"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, obs_module_text("Outline.Round"), OUTLINE_ROUND);
+	obs_property_list_add_int(prop, obs_module_text("Outline.Bevel"), OUTLINE_BEVEL);
+	obs_property_list_add_int(prop, obs_module_text("Outline.Rectangle"), OUTLINE_RECT);
+	obs_property_list_add_int(prop, obs_module_text("Outline.Sharp"), OUTLINE_SHARP);
 
 	prop = obs_properties_add_bool(props, "shadow", obs_module_text("Shadow"));
 	obs_property_set_modified_callback(prop, tp_prop_shadow_changed);
