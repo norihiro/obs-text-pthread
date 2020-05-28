@@ -110,8 +110,7 @@ static void tp_update(void *data, obs_data_t *settings)
 static void tp_get_defaults(obs_data_t *settings)
 {
 	obs_data_t *font_obj = obs_data_create();
-	// obs_data_set_default_string(font_obj, "face", DEFAULT_FACE); // TODO: if not set, I expect pango can choose something.
-	obs_data_set_default_int(font_obj, "size", 256);
+	obs_data_set_default_int(font_obj, "size", 64);
 	obs_data_set_default_obj(settings, "font", font_obj);
 	obs_data_release(font_obj);
 
