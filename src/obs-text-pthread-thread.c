@@ -1,5 +1,6 @@
 #include <obs-module.h>
 #include <util/platform.h>
+#include <util/threading.h>
 #include <time.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -7,8 +8,7 @@
 #include <pango/pangocairo.h>
 #include "obs-text-pthread.h"
 
-// TODO: remove below before release.
-#define debug(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
+#define debug(format, ...)
 
 char *tp_load_text(struct tp_config *config)
 {
@@ -190,22 +190,33 @@ bool tp_compare_stat(const struct stat *a, const struct stat *b)
 	return false;
 }
 
+static inline bool is_printable(const char *t)
+{
+	for (; *t; t++) {
+		const char c = *t;
+		if (!(c==' ' || c=='\n' || c=='\t' || c=='\r')) return true;
+	}
+	return false;
+}
+
 static void *tp_thread_main(void *data)
 {
 	struct tp_source *src = data;
 
 	struct stat st_prev = {0};
 	struct tp_config config_prev = {0};
+	bool b_printable_prev = false;
 
 	while (src->running) {
 		os_sleep_ms(33);
 
 		pthread_mutex_lock(&src->config_mutex);
 
-		bool need_draw = false;
+		bool config_updated = src->config_updated;
+		bool text_updated = false;
 
 		// check config and copy
-		if(src->config_updated) {
+		if(config_updated) {
 			BFREE_IF_NONNULL(config_prev.font_name);
 			BFREE_IF_NONNULL(config_prev.font_style);
 			BFREE_IF_NONNULL(config_prev.text_file);
@@ -214,7 +225,6 @@ static void *tp_thread_main(void *data)
 			config_prev.font_style = bstrdup(src->config.font_style);
 			config_prev.text_file = bstrdup(src->config.text_file);
 			src->config_updated = 0;
-			need_draw = true;
 		}
 
 		pthread_mutex_unlock(&src->config_mutex);
@@ -223,7 +233,7 @@ static void *tp_thread_main(void *data)
 		struct stat st = {0};
 		os_stat(config_prev.text_file, &st);
 		if(tp_compare_stat(&st, &st_prev)) {
-			need_draw = 1;
+			text_updated = 1;
 			memcpy(&st_prev, &st, sizeof(struct stat));
 		}
 
@@ -231,24 +241,37 @@ static void *tp_thread_main(void *data)
 		// If it takes much longer than frame rate, it should notify the main thread to start fade-out.
 
 		// load file if changed and draw
-		if (need_draw) {
+		if (config_updated || text_updated) {
 			uint64_t time_ns = os_gettime_ns();
 			char *text = tp_load_text(&config_prev);
+			bool b_printable = text ? is_printable(text) : 0;
 
-			struct tp_texture *tex = tp_draw_texture(&config_prev, text);
+			// make an early notification
+			if(b_printable) {
+				os_atomic_set_bool(&src->text_updating, true);
+			}
+
+			struct tp_texture *tex;
+			if(b_printable) {
+				tex = tp_draw_texture(&config_prev, text);
+			}
+			else {
+				tex = bzalloc(sizeof(struct tp_texture));
+			}
 			tex->time_ns = time_ns;
+			tex->config_updated = config_updated;
+			tex->is_crossfade = b_printable && b_printable_prev && !config_updated;
 
 			pthread_mutex_lock(&src->tex_mutex);
-			if (src->tex_new) {
-				free_texture(src->tex_new);
-			}
-			src->tex_new = tex;
+			src->tex_new = pushback_texture(src->tex_new, tex); tex = NULL;
 			pthread_mutex_unlock(&src->tex_mutex);
 
 			BFREE_IF_NONNULL(text);
 
 			debug("tp_draw_texture & tp_draw_texture takes %f ms\n",  (os_gettime_ns() - time_ns) * 1e-6);
 
+			if (text_updated)
+				b_printable_prev = b_printable;
 		}
 
 	}

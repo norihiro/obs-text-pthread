@@ -1,4 +1,6 @@
 #include <obs-module.h>
+#include <util/platform.h>
+#include <util/threading.h>
 #include <pango/pangocairo.h>
 #include "plugin-macros.generated.h"
 #include "obs-text-pthread.h"
@@ -101,6 +103,10 @@ static void tp_update(void *data, obs_data_t *settings)
 	src->config.shadow_color = tp_data_get_color(settings, "shadow_color");
 	src->config.shadow_x = obs_data_get_int(settings, "shadow_x");
 	src->config.shadow_y = obs_data_get_int(settings, "shadow_y");
+
+	src->config.fadein_ms = obs_data_get_int(settings, "fadein_ms");
+	src->config.fadeout_ms = obs_data_get_int(settings, "fadeout_ms");
+	src->config.crossfade_ms = obs_data_get_int(settings, "crossfade_ms");
 
 	src->config_updated = true;
 
@@ -210,6 +216,9 @@ static obs_properties_t *tp_get_properties(void *unused)
 	obs_properties_add_int(props, "shadow_x", obs_module_text("Shadow offset x"), -65536, 65536, 1);
 	obs_properties_add_int(props, "shadow_y", obs_module_text("Shadow offset y"), -65536, 65536, 1);
 
+	obs_properties_add_int(props, "fadein_ms", obs_module_text("Fadein time [ms]"), 0, 4294, 100);
+	obs_properties_add_int(props, "fadeout_ms", obs_module_text("Fadeout time [ms]"), 0, 4294, 100);
+	obs_properties_add_int(props, "crossfade_ms", obs_module_text("Crossfade time [ms]"), 0, 4294, 100);
 
 	return props;
 }
@@ -244,50 +253,158 @@ static uint32_t tp_get_height(void *data)
 
 static void tp_surface_to_texture(struct tp_texture *t)
 {
-	if(t->surface) {
-		obs_enter_graphics();
+	if(t->surface && (!t->tex || t->fade_alpha != t->fade_alpha_cached)) {
+		uint8_t *surface = t->surface;
+		uint8_t *tmp = NULL;
+		if (t->fade_alpha < 255) {
+			size_t len = 4 * t->width * t->height;
+			tmp = bmalloc(len);
+			for(int i=0; i<len; i+=4) {
+				tmp[i+0] = surface[i+0];
+				tmp[i+1] = surface[i+1];
+				tmp[i+2] = surface[i+2];
+				tmp[i+3] = surface[i+3] * (int)t->fade_alpha / 255;
+			}
+			surface = tmp;
+		}
+
 		if (t->tex) gs_texture_destroy(t->tex);
-		t->tex = gs_texture_create(t->width, t->height, GS_BGRA, 1, (const uint8_t**)&t->surface, 0);
-		obs_leave_graphics();
+		t->tex = gs_texture_create(t->width, t->height, GS_BGRA, 1, (const uint8_t**)&surface, 0);
+		t->fade_alpha_cached = t->fade_alpha;
 
-		bfree(t->surface);
-		t->surface = NULL;
+		if(tmp) bfree(tmp);
 	}
-
-	if(t->next)
-		tp_surface_to_texture(t->next);
 }
+
 
 static void tp_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
 	struct tp_source *src = data;
 
-	// TODO: implement to draw all textures with alpha.
+	obs_enter_graphics();
+	gs_reset_blend_state();
 
-	if (src->textures) {
-		struct tp_texture *t = src->textures;
-
-		gs_reset_blend_state();
+	for (struct tp_texture *t = src->textures; t; t=t->next) {
+		if (!t->width || !t->height) continue;
+		tp_surface_to_texture(t);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), t->tex);
 		gs_draw_sprite(t->tex, 0, t->width, t->height);
 	}
+	obs_leave_graphics();
+}
+
+static inline void tp_load_new_texture(struct tp_source *src, uint64_t lastframe_ns)
+{
+	if (src->tex_new) {
+		// new texture arrived
+
+		struct tp_texture *tn = src->tex_new;
+		src->tex_new = tn->next;
+		tn->next = NULL;
+
+		if (tn->config_updated) {
+			// A texture with updated config is arrived.
+			if (src->textures) {
+				free_texture(src->textures);
+				src->textures = NULL;
+			}
+		}
+
+		if (tn->surface) {
+			// if non-blank texture
+
+			if (!tn->config_updated) {
+				tn->fadein_start_ns = lastframe_ns;
+				tn->fadein_end_ns = lastframe_ns + (tn->is_crossfade ? src->config.crossfade_ms : src->config.fadein_ms) * 1000000;
+			}
+
+			if (src->config.crossfade_ms == 0) {
+				if (src->textures) {
+					free_texture(src->textures);
+					src->textures = NULL;
+				}
+			}
+		}
+		else {
+			// if blank texture
+
+			// mark fadeout for old textures
+			for (struct tp_texture *t=src->textures; t; t=t->next) {
+				if (!t->fadeout_start_ns) {
+					t->fadeout_start_ns = tn->time_ns;
+					t->fadeout_end_ns = tn->time_ns + src->config.fadeout_ms * 1000000;
+				}
+			}
+		}
+
+		src->textures = pushback_texture(src->textures, tn);
+	}
+}
+
+static struct tp_texture *tp_pop_old_textures(struct tp_texture *t, uint64_t now_ns)
+{
+	if (!t) return NULL;
+	if (t->fadeout_end_ns && now_ns >= t->fadeout_end_ns) {
+		t = popfront_texture(t);
+		return tp_pop_old_textures(t, now_ns);
+	}
+	t->next = tp_pop_old_textures(t->next, now_ns);
+	return t;
 }
 
 static void tp_tick(void *data, float seconds)
 {
-	UNUSED_PARAMETER(seconds);
 	struct tp_source *src = data;
 
-	if (pthread_mutex_trylock(&src->tex_mutex)==0) {
-		if (src->tex_new) {
-			if (src->textures) free_texture(src->textures);
-			src->textures = src->tex_new;
-			src->tex_new = NULL;
+	uint64_t now_ns = os_gettime_ns();
+	uint64_t lastframe_ns = now_ns - (uint64_t)(seconds*1e9);
 
-			tp_surface_to_texture(src->textures);
+	src->textures = tp_pop_old_textures(src->textures, now_ns);
+
+	if (os_atomic_load_bool(&src->text_updating)) {
+		// early notification for the new non-blank texture from the thread
+
+		// mark fadeout for old textures
+		if (src->config.crossfade_ms > 0) for (struct tp_texture *t=src->textures; t; t=t->next) {
+			if (!t->fadeout_start_ns) {
+				t->fadeout_start_ns = lastframe_ns;
+				t->fadeout_end_ns = lastframe_ns + src->config.crossfade_ms * 1000000;
+			}
 		}
+		os_atomic_set_bool(&src->text_updating, false);
+	}
+
+	if (pthread_mutex_trylock(&src->tex_mutex)==0) {
+		tp_load_new_texture(src, lastframe_ns);
 		pthread_mutex_unlock(&src->tex_mutex);
+	}
+
+	src->textures = tp_pop_old_textures(src->textures, now_ns);
+
+	for (struct tp_texture *t=src->textures; t; t=t->next) {
+
+		// cleanup fadein
+		if (t->fadein_start_ns && now_ns >= t->fadein_end_ns) {
+			t->fadein_start_ns = t->fadein_end_ns = 0;
+		}
+
+		int fade_alpha = 255;
+
+		if (t->fadein_start_ns) {
+			fade_alpha = 255 * (now_ns - t->fadein_start_ns) / (t->fadein_end_ns - t->fadein_start_ns);
+		}
+
+		if(t->fadeout_end_ns && now_ns >= t->fadeout_end_ns) {
+			fade_alpha = 0;
+		}
+		else if(t->fadeout_start_ns) {
+			fade_alpha = fade_alpha * (t->fadeout_end_ns - now_ns) / (t->fadeout_end_ns - t->fadeout_start_ns);
+		}
+
+		if (fade_alpha < 0) fade_alpha = 0;
+		else if(fade_alpha > 255) fade_alpha = 255;
+		t->fade_alpha = fade_alpha;
 	}
 }
 

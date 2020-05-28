@@ -5,10 +5,19 @@
 
 struct tp_texture
 {
+	// data from the thread
 	uint32_t width, height;
 	gs_texture_t *tex;
 	uint8_t *surface;
 	uint64_t time_ns;
+	bool config_updated;
+	bool is_crossfade;
+
+	// internal use in main
+	uint64_t fadein_start_ns, fadein_end_ns;
+	uint64_t fadeout_start_ns, fadeout_end_ns;
+	int fade_alpha;
+	int fade_alpha_cached;
 
 	struct tp_texture *next;
 };
@@ -42,6 +51,8 @@ struct tp_config
 	bool shadow;
 	uint32_t shadow_color;
 	int32_t shadow_x, shadow_y;
+
+	uint32_t fadeout_ms, fadein_ms, crossfade_ms;
 };
 
 struct tp_source
@@ -59,6 +70,7 @@ struct tp_source
 	// read from main and set to NULL
 	pthread_mutex_t tex_mutex;
 	struct tp_texture *tex_new;
+	volatile bool text_updating;
 
 	// internal use for main
 	struct tp_texture *textures;
@@ -101,6 +113,24 @@ static inline struct tp_texture *adv_texture(struct tp_texture *t)
 	t->next = NULL;
 	free_texture(t);
 	return n;
+}
+
+static inline struct tp_texture *pushback_texture(struct tp_texture *dest, struct tp_texture *n)
+{
+	if(!dest)
+		return n;
+	for (struct tp_texture *t = dest; ; t=t->next) if (!t->next) {
+		t->next = n;
+		return dest;
+	}
+}
+
+static inline struct tp_texture *popfront_texture(struct tp_texture *t)
+{
+	struct tp_texture *ret = t->next;
+	t->next = NULL;
+	free_texture(t);
+	return ret;
 }
 
 #endif // OBS_TEXT_PTHREAD_H
