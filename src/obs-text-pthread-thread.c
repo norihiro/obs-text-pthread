@@ -2,8 +2,9 @@
 #include <util/platform.h>
 #include <util/threading.h>
 #include <time.h>
-#include <unistd.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <string.h>
 #include <pango/pangocairo.h>
 #include "obs-text-pthread.h"
@@ -227,6 +228,9 @@ static void *tp_thread_main(void *data)
 	struct tp_config config_prev = {0};
 	bool b_printable_prev = false;
 
+	setpriority(PRIO_PROCESS, 0, 19);
+	os_set_thread_name("text-pthread");
+
 	while (src->running) {
 		os_sleep_ms(33);
 
@@ -301,8 +305,6 @@ static void *tp_thread_main(void *data)
 
 void tp_thread_start(struct tp_source *src)
 {
-	nice(19);
-
 	src->running = true;
 	pthread_create(&src->thread, NULL, tp_thread_main, src);
 }
