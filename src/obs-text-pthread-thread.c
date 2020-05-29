@@ -40,6 +40,7 @@ static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_con
 {
 	for (int b = blur; b>=-blur; b--) {
 		double a = u32toFA(color) * (blur ? 0.5 - b * 0.5 / blur : 1.0);
+		if (a < 1e-2) continue;
 		int w = (width+b)*2;
 		if (w<0) break;
 		cairo_move_to(cr, offset_x, offset_y);
