@@ -51,6 +51,7 @@ struct tp_config
 	uint32_t align;
 	bool auto_dir;
 	int wrapmode;
+	int32_t indent;
 	int ellipsize;
 	int spacing;
 	bool outline;

@@ -94,6 +94,7 @@ static void tp_update(void *data, obs_data_t *settings)
 	src->config.align = obs_data_get_int(settings, "align");
 	src->config.auto_dir = obs_data_get_bool(settings, "auto_dir");
 	src->config.wrapmode = obs_data_get_int(settings, "wrapmode");
+	src->config.indent = obs_data_get_int(settings, "indent");
 	src->config.ellipsize = obs_data_get_int(settings, "ellipsize");
 	src->config.spacing = obs_data_get_int(settings, "spacing");
 
@@ -207,6 +208,8 @@ static obs_properties_t *tp_get_properties(void *unused)
 	obs_property_list_add_int(prop, obs_module_text("Wrapmode.Word"), PANGO_WRAP_WORD);
 	obs_property_list_add_int(prop, obs_module_text("Wrapmode.Char"), PANGO_WRAP_CHAR);
 	obs_property_list_add_int(prop, obs_module_text("Wrapmode.WordChar"), PANGO_WRAP_WORD_CHAR);
+
+	obs_properties_add_int(props, "indent", obs_module_text("Indent"), -32767, 32767, 1);
 
 	prop = obs_properties_add_list(props, "ellipsize", obs_module_text("Ellipsize"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Ellipsize.None"), PANGO_ELLIPSIZE_NONE);

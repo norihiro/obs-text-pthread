@@ -132,6 +132,7 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	else // ALIGN_LEFT
 		pango_layout_set_alignment(layout, PANGO_ALIGN_LEFT);
 	pango_layout_set_justify(layout, !!(config->align & ALIGN_JUSTIFY));
+	pango_layout_set_indent(layout, config->indent * PANGO_SCALE);
 
 	pango_layout_set_width(layout, body_width<<10);
 	pango_layout_set_auto_dir(layout, config->auto_dir);
