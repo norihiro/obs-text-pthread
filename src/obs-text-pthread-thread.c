@@ -175,7 +175,7 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	if (config->shrink_size) {
 		n->width = PANGO_PIXELS_FLOOR(ink_rect.width) + outline_width_blur*2 + shadow_abs_x;
 		if (n->width > surface_width) n->width = surface_width;
-		n->height = PANGO_PIXELS_FLOOR(ink_rect.height) + outline_width_blur*2 + shadow_abs_y;
+		n->height = PANGO_PIXELS_FLOOR(ink_rect.height) + PANGO_PIXELS_FLOOR(ink_rect.y) + outline_width_blur*2 + shadow_abs_y;
 		if (n->height > surface_height) n->height = surface_height;
 		if (n->width != surface_width) {
 			uint32_t xoff = PANGO_PIXELS_FLOOR(ink_rect.x);
@@ -205,7 +205,7 @@ bool tp_compare_stat(const struct stat *a, const struct stat *b)
 #else // __USE_XOPEN2K8
 	if (a->st_mtime != b->st_mtime ) return true;
 #ifdef _STATBUF_ST_NSEC
-	if (a->st_mtime_nsec != b->st_mtime_nsec) return true;
+	if (a->st_mtimensec != b->st_mtimensec) return true;
 #endif // _STATBUF_ST_NSEC
 #endif // __USE_XOPEN2K8
 	return false;
