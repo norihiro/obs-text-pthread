@@ -39,6 +39,7 @@ static double u32toFA(uint32_t u) { return (double)((u >> 24) & 0xFF) / 256.; }
 
 static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_config *config, int offset_x, int offset_y, uint32_t color, int width, int blur)
 {
+	bool path_preserved = false;
 	for (int b = blur; b>=-blur; b--) {
 		double a = u32toFA(color) * (blur ? 0.5 - b * 0.5 / blur : 1.0);
 		if (a < 1e-2) continue;
@@ -62,8 +63,10 @@ static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_con
 			else {
 				cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
 			}
-			pango_cairo_layout_path(cr, layout);
-			cairo_stroke(cr);
+			if (!path_preserved)
+				pango_cairo_layout_path(cr, layout);
+			cairo_stroke_preserve(cr);
+			path_preserved = true;
 		}
 		else {
 			pango_cairo_show_layout(cr, layout);
