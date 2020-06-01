@@ -154,7 +154,6 @@ static void tp_get_defaults(obs_data_t *settings)
 static bool tp_prop_outline_changed(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
 {
 	UNUSED_PARAMETER(property);
-	obs_property_t *prop;
 
 	bool en = settings ? obs_data_get_bool(settings, "outline") : false;
 	tp_set_visible(props, "outline_color", en);
@@ -162,18 +161,21 @@ static bool tp_prop_outline_changed(obs_properties_t *props, obs_property_t *pro
 	tp_set_visible(props, "outline_width", en);
 	tp_set_visible(props, "outline_blur", en);
 	tp_set_visible(props, "outline_shape", en);
+
+	return false;
 }
 
 static bool tp_prop_shadow_changed(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
 {
 	UNUSED_PARAMETER(property);
-	obs_property_t *prop;
 
 	bool en = settings ? obs_data_get_bool(settings, "shadow") : false;
 	tp_set_visible(props, "shadow_color", en);
 	tp_set_visible(props, "shadow_color.alpha", en);
 	tp_set_visible(props, "shadow_x", en);
 	tp_set_visible(props, "shadow_y", en);
+
+	return false;
 }
 
 static obs_properties_t *tp_get_properties(void *unused)

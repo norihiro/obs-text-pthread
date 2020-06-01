@@ -301,6 +301,7 @@ static void *tp_thread_main(void *data)
 	}
 
 	tp_config_destroy_member(&config_prev);
+	return NULL;
 }
 
 void tp_thread_start(struct tp_source *src)
