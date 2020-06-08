@@ -160,14 +160,29 @@ static inline uint32_t blend_rgba(uint32_t c2, uint32_t c1)
 		(blend_rgba_ch((c1    )&0xFF, (c2    )&0xFF, c1>>24, c2>>24, a_255)      );
 }
 
+static inline uint32_t blend_text_ch(uint32_t xt, uint32_t xb, uint32_t at, uint32_t ab, uint32_t u, uint32_t a_255)
+{
+	return a_255 ? ((255-u) * ab * xb + u * at * xt) / a_255 : 0;
+}
+
+static inline uint32_t blend_text(uint32_t ct, uint32_t cb, uint32_t u)
+{
+	uint32_t a_255 = u * (ct>>24) + (255-u) * (cb>>24);
+	return ((a_255/255) << 24) |
+		(blend_text_ch((ct>>16)&0xFF, (cb>>16)&0xFF, ct>>24, cb>>24, u, a_255) << 16) |
+		(blend_text_ch((ct>> 8)&0xFF, (cb>> 8)&0xFF, ct>>24, cb>>24, u, a_255) <<  8) |
+		(blend_text_ch((ct    )&0xFF, (cb    )&0xFF, ct>>24, cb>>24, u, a_255)      );
+}
+
 static inline void blend_outline_shadow(uint8_t *s, const int stride, const uint32_t w, const uint32_t h, const uint8_t *so, const uint8_t *ss, const struct tp_config *config)
 {
 	uint32_t size = h * stride;
+	uint32_t ct_a = config->color & 0xFF000000;
 	for(int i=0, k=0; i<size; i+=4, k+=1) {
 		uint32_t cs = ss ? ss[k]<<24 | (config->shadow_color  & 0xFFFFFF) : 0;
 		uint32_t co = so ? so[k]<<24 | (config->outline_color & 0xFFFFFF) : 0;
 		uint32_t ct = s ? s[i]<<16 | s[i+1]<<8 | s[i+2] | s[i+3]<<24 : 0;
-		uint32_t c = blend_rgba(ct, ss ? so ? blend_rgba(co, cs) : cs : co);
+		uint32_t c = blend_text((ct & 0x00FFFFFF) | ct_a, ss ? so ? blend_rgba(co, cs) : cs : co, ct>>24);
 		s[i  ] = c>>16;
 		s[i+1] = c>>8;
 		s[i+2] = c;
@@ -268,7 +283,9 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	// workaround to draw light transparent color on light surface, which became darker.
 	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
 	debug_fill_rgb(n->surface, config->color, stride*surface_ink_height);
-	tp_stroke_path(cr, layout, config, offset_x, offset_y, config->color, 0, 0);
+	uint32_t color_draw = config->color;
+	if (config->outline || config->shadow) color_draw |= 0xFF000000;
+	tp_stroke_path(cr, layout, config, offset_x, offset_y, color_draw, 0, 0);
 
 	if (config->outline || config->shadow)
 		blend_outline_shadow(n->surface, stride, surface_width, surface_ink_height, surface_outline, surface_shadow, config);
