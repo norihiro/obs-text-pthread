@@ -37,10 +37,21 @@ static double u32toFG(uint32_t u) { return (double)((u >>  8) & 0xFF) / 256.; }
 static double u32toFB(uint32_t u) { return (double)((u >> 16) & 0xFF) / 256.; }
 static double u32toFA(uint32_t u) { return (double)((u >> 24) & 0xFF) / 256.; }
 
+static inline int blur_step(int blur)
+{
+	// only odd number is allowed
+	// roughly 16 steps to draw with pango-cairo, then blur by pixel.
+	return (blur/8) | 1;
+}
+
 static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_config *config, int offset_x, int offset_y, uint32_t color, int width, int blur)
 {
 	bool path_preserved = false;
-	for (int b = blur; b>=-blur; b--) {
+	const int bs = blur_step(blur);
+	int b_end = -blur;
+	if (blur && b_end+width<=0) b_end = -width+1;
+	int b_start = b_end + (2*blur) / bs * bs;
+	for (int b=b_start; b>=b_end; b-=bs) {
 		double a = u32toFA(color) * (blur ? 0.5 - b * 0.5 / blur : 1.0);
 		if (a < 1e-2) continue;
 		int w = (width+b)*2;
@@ -71,6 +82,54 @@ static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_con
 		else {
 			pango_cairo_show_layout(cr, layout);
 		}
+	}
+
+	cairo_surface_flush(cairo_get_target(cr));
+
+	if (bs>1) {
+		cairo_surface_t *surface = cairo_get_target(cr);
+		const int w = cairo_image_surface_get_width(surface);
+		const int h = cairo_image_surface_get_height(surface);
+		uint8_t *data = cairo_image_surface_get_data(surface);
+		const int bs1 = bs+1;
+		uint32_t *tmp = bzalloc(sizeof(uint32_t) * w * bs1);
+		uint32_t **tt = bzalloc(sizeof(uint32_t*) * bs1);
+
+		for (int k=0; k<bs1; k++) {
+			tt[k] = tmp + w*k;
+		}
+
+		const int bs2 = bs/2;
+		const int div = bs*bs;
+		for (int k=0, kt=0; k<h; k++) {
+			const int k2 = k+bs2 < h ? k+bs2 : h-1;
+			const int k1 = k-bs2-1;
+
+			for (; kt<=k2; kt++) {
+				for (uint32_t i=0; i<w; i++) {
+					uint32_t s = data[(i+kt*w)*4+3];
+					if (i>0) s += tt[kt%bs1][i-1];
+					if (kt>0) s += + tt[(kt-1)%bs1][i];
+					if (kt>0 && i>0) s -= tt[(kt-1)%bs1][i-1];
+					tt[kt%bs1][i] = s;
+				}
+			}
+
+			for (int i=0; i<w; i++) {
+				const int i2 = i+bs2 < w ? i+bs2 : w-1;
+				const int i1 = i-bs2-1;
+				uint32_t s = tt[k2%bs1][i2];
+				if (k1>=0) s -= tt[k1%bs1][i2];
+				if (i1>=0) s -= tt[k2%bs1][i1];
+				if (k1>=0 && i1>=0) s += tt[k1%bs1][i1];
+				s /= div;
+				if (s>255) s = 255;
+				data[(i+k*w)*4+3] = s;
+			}
+		}
+
+		bfree(tmp);
+		bfree(tt);
 	}
 }
 
@@ -191,7 +250,6 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 			tp_stroke_path(cr, layout, config, offset_x + config->shadow_x, offset_y + config->shadow_y, config->shadow_color, outline_width, outline_blur);
 		tp_stroke_path(cr, layout, config, offset_x + config->shadow_x, offset_y + config->shadow_y, config->shadow_color, 0, 0);
 
-		cairo_surface_flush(surface);
 		surface_shadow = bzalloc(stride * surface_height);
 		copy_rgba2a(surface_shadow, n->surface, stride, surface_width, surface_ink_height);
 		memset(n->surface, 0, stride * surface_height);
@@ -202,7 +260,6 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 		cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
 		tp_stroke_path(cr, layout, config, offset_x, offset_y, config->outline_color, outline_width, outline_blur);
 
-		cairo_surface_flush(surface);
 		surface_outline = bzalloc(stride * surface_height);
 		copy_rgba2a(surface_outline, n->surface, stride, surface_width, surface_ink_height);
 		memset(n->surface, 0, stride * surface_height);
@@ -212,8 +269,6 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
 	debug_fill_rgb(n->surface, config->color, stride*surface_ink_height);
 	tp_stroke_path(cr, layout, config, offset_x, offset_y, config->color, 0, 0);
-
-	cairo_surface_flush(surface);
 
 	if (config->outline || config->shadow)
 		blend_outline_shadow(n->surface, stride, surface_width, surface_ink_height, surface_outline, surface_shadow, config);
