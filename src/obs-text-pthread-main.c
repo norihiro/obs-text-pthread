@@ -8,6 +8,11 @@
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
+#define debug(format, ...)
+// #define debug(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
+
+static inline uint64_t max_u64(uint64_t a, uint64_t b) { if (a>b) return a; return b; }
+
 #define tp_data_get_color(s, c) tp_data_get_color2(s, c, c".alpha")
 static inline uint32_t tp_data_get_color2(obs_data_t *settings, const char *color, const char *alpha)
 {
@@ -114,6 +119,8 @@ static void tp_update(void *data, obs_data_t *settings)
 	src->config.fadein_ms = obs_data_get_int(settings, "fadein_ms");
 	src->config.fadeout_ms = obs_data_get_int(settings, "fadeout_ms");
 	src->config.crossfade_ms = obs_data_get_int(settings, "crossfade_ms");
+
+	src->config.slide_pxps = obs_data_get_int(settings, "slide_pxps");
 
 	src->config_updated = true;
 
@@ -259,6 +266,8 @@ static obs_properties_t *tp_get_properties(void *unused)
 	obs_properties_add_int(props, "fadeout_ms", obs_module_text("Fadeout time [ms]"), 0, 4294, 100);
 	obs_properties_add_int(props, "crossfade_ms", obs_module_text("Crossfade time [ms]"), 0, 4294, 100);
 
+	obs_properties_add_int(props, "slide_pxps", obs_module_text("Slide [px/s] (0 to disable)"), 0, 65500, 50);
+
 	return props;
 }
 
@@ -283,7 +292,12 @@ static uint32_t tp_get_height(void *data)
 	uint32_t h = 0;
 	struct tp_texture *t = src->textures;
 	while (t) {
-		if (h < t->height) h = t->height;
+		if (src->config.slide_pxps)
+			h += t->slide_h;
+		else {
+			if (h < t->height)
+				h = t->height;
+		}
 		t = t->next;
 	}
 
@@ -326,27 +340,39 @@ static void tp_render(void *data, gs_effect_t *effect)
 
 	const int w = tp_get_width(data);
 	const int h = tp_get_height(data);
+	int xoff = 0, yoff = 0;
 
 	for (struct tp_texture *t = src->textures; t; t=t->next) {
 		if (!t->width || !t->height) continue;
+		if (t->slide_u>0 && t->slide_u > t->height) continue;
+		if (t->slide_u<0 && (-t->slide_u) > t->height) continue;
 		tp_surface_to_texture(t);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), t->tex);
-		float xoff = 0, yoff = 0;
+		int y0 = t->slide_u>0 ? t->slide_u : 0;
+		int y1 = t->slide_u<0 ? t->height+t->slide_u : t->height;
+		xoff = 0;
 		if ((src->config.align_transition & ALIGN_RIGHT) && t->width < w)
 			xoff += w - t->width;
 		else if ((src->config.align_transition & ALIGN_CENTER) && t->width < w)
-			xoff += (w - t->width + 1) / 2;
-		if ((src->config.align_transition & ALIGN_BOTTOM) && t->height < h)
-			yoff += h - t->height;
-		else if ((src->config.align_transition & ALIGN_VCENTER) && t->height < h)
-			yoff += (h - t->height) / 2;
-		if (xoff<-0.1f || 0.1f<xoff || yoff<-0.1f || 0.1f<yoff) {
+			xoff += w/2 - t->width/2;
+		if (!src->config.slide_pxps) {
+			yoff = 0;
+			if ((src->config.align_transition & ALIGN_BOTTOM) && t->height != h)
+				yoff += h - t->height;
+			else if ((src->config.align_transition & ALIGN_VCENTER) && t->height != h)
+				yoff += h/2 - t->height / 2;
+		}
+		if (xoff || yoff) {
 			gs_matrix_push();
 			gs_matrix_translate3f(xoff, yoff, 0);
 		}
-		gs_draw_sprite(t->tex, 0, t->width, t->height);
-		if (xoff<-0.1f || 0.1f<xoff || yoff<-0.1f || 0.1f<yoff)
+		gs_draw_sprite_subregion(t->tex, 0, 0, y0, t->width, y1);
+		if (xoff || yoff)
 			gs_matrix_pop();
+
+		if (src->config.slide_pxps) {
+			yoff += t->slide_h;
+		}
 	}
 	obs_leave_graphics();
 }
@@ -376,7 +402,20 @@ static inline void tp_load_new_texture(struct tp_source *src, uint64_t lastframe
 				tn->fadein_end_ns = lastframe_ns + (tn->is_crossfade ? src->config.crossfade_ms : src->config.fadein_ms) * 1000000;
 			}
 
-			if (src->config.crossfade_ms == 0) {
+			if (src->config.slide_pxps) {
+				uint64_t slidein_ns = tn->height * 1000000000LL / src->config.slide_pxps;
+				if (!src->textures) {
+					tn->slidein_end_ns = lastframe_ns + slidein_ns;
+				}
+				else if (src->textures) {
+					struct tp_texture *tl = src->textures;
+					while (tl->next) tl = tl->next;
+					tn->slidein_end_ns = (tl->slideout_start_ns ? tl->slideout_start_ns : lastframe_ns) + slidein_ns;
+					debug("lastframe_ns=%f %p slidein_end_ns=%f\n", lastframe_ns*1e-9, tn, tn->slidein_end_ns*1e-9);
+				}
+			}
+
+			if (src->config.crossfade_ms==0 && src->config.slide_pxps==0) {
 				if (src->textures) {
 					free_texture(src->textures);
 					src->textures = NULL;
@@ -399,14 +438,42 @@ static inline void tp_load_new_texture(struct tp_source *src, uint64_t lastframe
 	}
 }
 
-static struct tp_texture *tp_pop_old_textures(struct tp_texture *t, uint64_t now_ns)
+static struct tp_texture *tp_pop_old_textures(struct tp_texture *t, uint64_t now_ns, const struct tp_source *src)
 {
 	if (!t) return NULL;
-	if (t->fadeout_end_ns && now_ns >= t->fadeout_end_ns) {
+
+	bool deprecated = false;
+	if (t->fadeout_end_ns)
+		deprecated = true;
+	if (t->slideout_start_ns)
+		deprecated = true;
+	if (t->next && !src->config.slide_pxps)
+		deprecated = true;
+
+	bool transition_ongoing = false;
+	if (t->fadeout_end_ns && now_ns < t->fadeout_end_ns)
+		transition_ongoing = true;
+	if (t->slidein_end_ns) // TODO: remove me
+		transition_ongoing = true;
+	if (t->slideout_start_ns && t->slide_u < t->height)
+		transition_ongoing = true;
+	if (t->slideout_start_ns && t->next && t->slide_u < t->next->height)
+		transition_ongoing = true;
+
+	if (deprecated && !transition_ongoing) {
+		debug("tp_pop_old_textures: removing %p fadeout_end=%f slideout_start=%f slide_u=%d height=%d now=%f\n",
+				t,
+				t->fadeout_end_ns*1e-9,
+				t->slideout_start_ns*1e-9,
+				t->slide_u, t->height,
+				now_ns*1e-9
+				);
 		t = popfront_texture(t);
-		return tp_pop_old_textures(t, now_ns);
+		return tp_pop_old_textures(t, now_ns, src);
 	}
-	t->next = tp_pop_old_textures(t->next, now_ns);
+	if (src->config.slide_pxps)
+		return t;
+	t->next = tp_pop_old_textures(t->next, now_ns, src);
 	return t;
 }
 
@@ -417,7 +484,7 @@ static void tp_tick(void *data, float seconds)
 	uint64_t now_ns = os_gettime_ns();
 	uint64_t lastframe_ns = now_ns - (uint64_t)(seconds*1e9);
 
-	src->textures = tp_pop_old_textures(src->textures, now_ns);
+	src->textures = tp_pop_old_textures(src->textures, now_ns, src);
 
 	if (os_atomic_load_bool(&src->text_updating)) {
 		// early notification for the new non-blank texture from the thread
@@ -429,6 +496,19 @@ static void tp_tick(void *data, float seconds)
 				t->fadeout_end_ns = lastframe_ns + src->config.crossfade_ms * 1000000;
 			}
 		}
+
+		if (src->config.slide_pxps) {
+			uint64_t slideout_end_last = lastframe_ns;
+			for (struct tp_texture *t=src->textures; t; t=t->next) {
+				if (!t->slideout_start_ns) {
+					t->slideout_start_ns = max_u64(t->slidein_end_ns, slideout_end_last);
+					debug("now_ns=%f %p slideout_start_ns=%f slidein_end_ns=%f slideout_end_last=%f \n", now_ns*1e-9, t, t->slideout_start_ns*1e-9, t->slidein_end_ns*1e-9, slideout_end_last*1e-9);
+				}
+				slideout_end_last = t->slideout_start_ns + t->height * 1000000000LL / src->config.slide_pxps;
+				debug("now_ns=%f %p slideout_end_last=%f slidetime=%f\n", now_ns*1e-9, t, slideout_end_last*1e-9, t->height*1e0/src->config.slide_pxps);
+			}
+		}
+
 		os_atomic_set_bool(&src->text_updating, false);
 	}
 
@@ -437,7 +517,25 @@ static void tp_tick(void *data, float seconds)
 		pthread_mutex_unlock(&src->tex_mutex);
 	}
 
-	src->textures = tp_pop_old_textures(src->textures, now_ns);
+	if (src->config.slide_pxps) for (struct tp_texture *t=src->textures; t; t=t->next) {
+		if (t->slidein_end_ns) {
+			if (now_ns >= t->slidein_end_ns) {
+				t->slidein_end_ns = 0;
+				t->slide_u = 0;
+			}
+			else
+				t->slide_u = -(int64_t)((t->slidein_end_ns - now_ns) * src->config.slide_pxps / 1000000000);
+		}
+
+		if (!t->slidein_end_ns && t->slideout_start_ns && now_ns > t->slideout_start_ns)
+			t->slide_u = (int64_t)(now_ns - t->slideout_start_ns) * src->config.slide_pxps / 1000000000;
+
+		t->slide_h = t->height - abs(t->slide_u);
+		if (t->slide_h<0)
+			t->slide_h = 0;
+	}
+
+	src->textures = tp_pop_old_textures(src->textures, now_ns, src);
 
 	for (struct tp_texture *t=src->textures; t; t=t->next) {
 

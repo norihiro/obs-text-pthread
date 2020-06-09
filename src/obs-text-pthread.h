@@ -18,6 +18,9 @@ struct tp_texture
 	uint64_t fadeout_start_ns, fadeout_end_ns;
 	int fade_alpha;
 	int fade_alpha_cached;
+	uint64_t slidein_end_ns, slideout_start_ns;
+	int slide_u; // >0: slide-out, <0: slide-in
+	int slide_h; // height during slide
 
 	struct tp_texture *next;
 };
@@ -71,6 +74,7 @@ struct tp_config
 	uint32_t align_transition;
 
 	uint32_t fadeout_ms, fadein_ms, crossfade_ms;
+	uint32_t slide_pxps; // pixel/s, or 0 to disable
 };
 
 struct tp_source

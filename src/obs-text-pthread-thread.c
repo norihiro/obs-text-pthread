@@ -10,6 +10,7 @@
 #include "obs-text-pthread.h"
 
 #define debug(format, ...)
+// #define debug(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
 
 char *tp_load_text(struct tp_config *config)
 {
@@ -295,9 +296,9 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	cairo_surface_destroy(surface);
 
 	if (config->shrink_size) {
-		n->width = PANGO_PIXELS_FLOOR(ink_rect.width) + outline_width_blur*2 + shadow_abs_x;
+		n->width = PANGO_PIXELS_CEIL(logical_rect.x+logical_rect.width) + outline_width_blur*2 + shadow_abs_x;
 		if (n->width > surface_width) n->width = surface_width;
-		n->height = PANGO_PIXELS_FLOOR(logical_rect.height) + PANGO_PIXELS_FLOOR(logical_rect.y) + outline_width_blur*2 + shadow_abs_y;
+		n->height = PANGO_PIXELS_CEIL(logical_rect.y + logical_rect.height) + outline_width_blur*2 + shadow_abs_y;
 		if (n->height > surface_height) n->height = surface_height;
 		if (n->width != surface_width) {
 			uint32_t xoff = PANGO_PIXELS_FLOOR(logical_rect.x);
