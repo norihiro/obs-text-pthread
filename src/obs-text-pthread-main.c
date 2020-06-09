@@ -109,6 +109,8 @@ static void tp_update(void *data, obs_data_t *settings)
 	src->config.shadow_x = obs_data_get_int(settings, "shadow_x");
 	src->config.shadow_y = obs_data_get_int(settings, "shadow_y");
 
+	src->config.align_transition = obs_data_get_int(settings, "align_transition.v") | obs_data_get_int(settings, "align_transition.h");
+
 	src->config.fadein_ms = obs_data_get_int(settings, "fadein_ms");
 	src->config.fadeout_ms = obs_data_get_int(settings, "fadeout_ms");
 	src->config.crossfade_ms = obs_data_get_int(settings, "crossfade_ms");
@@ -143,6 +145,9 @@ static void tp_get_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "shadow_x", 2);
 	obs_data_set_default_int(settings, "shadow_y", 3);
 	obs_data_set_default_int(settings, "shadow_color.alpha", 0xFF);
+
+	obs_data_set_default_int(settings, "align_transition.v", ALIGN_TOP);
+	obs_data_set_default_int(settings, "align_transition.h", ALIGN_LEFT);
 }
 
 #define tp_set_visible(props, name, en) \
@@ -240,6 +245,16 @@ static obs_properties_t *tp_get_properties(void *unused)
 	obs_properties_add_int(props, "shadow_x", obs_module_text("Shadow offset x"), -65536, 65536, 1);
 	obs_properties_add_int(props, "shadow_y", obs_module_text("Shadow offset y"), -65536, 65536, 1);
 
+	prop = obs_properties_add_list(props, "align_transition.h", obs_module_text("Transition alignment"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, obs_module_text("Alignment.Left"), ALIGN_LEFT);
+	obs_property_list_add_int(prop, obs_module_text("Alignment.Center"), ALIGN_CENTER);
+	obs_property_list_add_int(prop, obs_module_text("Alignment.Right"), ALIGN_RIGHT);
+
+	prop = obs_properties_add_list(props, "align_transition.v", obs_module_text("Transition alignment"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, obs_module_text("Alignment.Top"), ALIGN_TOP);
+	obs_property_list_add_int(prop, obs_module_text("Alignment.Center"), ALIGN_VCENTER);
+	obs_property_list_add_int(prop, obs_module_text("Alignment.Bottom"), ALIGN_BOTTOM);
+
 	obs_properties_add_int(props, "fadein_ms", obs_module_text("Fadein time [ms]"), 0, 4294, 100);
 	obs_properties_add_int(props, "fadeout_ms", obs_module_text("Fadeout time [ms]"), 0, 4294, 100);
 	obs_properties_add_int(props, "crossfade_ms", obs_module_text("Crossfade time [ms]"), 0, 4294, 100);
@@ -309,11 +324,29 @@ static void tp_render(void *data, gs_effect_t *effect)
 	obs_enter_graphics();
 	gs_reset_blend_state();
 
+	const int w = tp_get_width(data);
+	const int h = tp_get_height(data);
+
 	for (struct tp_texture *t = src->textures; t; t=t->next) {
 		if (!t->width || !t->height) continue;
 		tp_surface_to_texture(t);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), t->tex);
+		float xoff = 0, yoff = 0;
+		if ((src->config.align_transition & ALIGN_RIGHT) && t->width < w)
+			xoff += w - t->width;
+		else if ((src->config.align_transition & ALIGN_CENTER) && t->width < w)
+			xoff += (w - t->width + 1) / 2;
+		if ((src->config.align_transition & ALIGN_BOTTOM) && t->height < h)
+			yoff += h - t->height;
+		else if ((src->config.align_transition & ALIGN_VCENTER) && t->height < h)
+			yoff += (h - t->height) / 2;
+		if (xoff<-0.1f || 0.1f<xoff || yoff<-0.1f || 0.1f<yoff) {
+			gs_matrix_push();
+			gs_matrix_translate3f(xoff, yoff, 0);
+		}
 		gs_draw_sprite(t->tex, 0, t->width, t->height);
+		if (xoff<-0.1f || 0.1f<xoff || yoff<-0.1f || 0.1f<yoff)
+			gs_matrix_pop();
 	}
 	obs_leave_graphics();
 }

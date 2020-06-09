@@ -297,10 +297,10 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	if (config->shrink_size) {
 		n->width = PANGO_PIXELS_FLOOR(ink_rect.width) + outline_width_blur*2 + shadow_abs_x;
 		if (n->width > surface_width) n->width = surface_width;
-		n->height = surface_ink_height;
+		n->height = PANGO_PIXELS_FLOOR(logical_rect.height) + PANGO_PIXELS_FLOOR(logical_rect.y) + outline_width_blur*2 + shadow_abs_y;
 		if (n->height > surface_height) n->height = surface_height;
 		if (n->width != surface_width) {
-			uint32_t xoff = PANGO_PIXELS_FLOOR(ink_rect.x);
+			uint32_t xoff = PANGO_PIXELS_FLOOR(logical_rect.x);
 			if (xoff < 0) xoff = 0;
 			uint32_t new_stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, n->width);
 			for (uint32_t y=1; y<n->height; y++) {

@@ -27,6 +27,11 @@ enum {
 	ALIGN_CENTER = 1,
 	ALIGN_RIGHT = 2,
 	ALIGN_JUSTIFY = 4,
+
+	// for vertical align during transition
+	ALIGN_TOP = 8,
+	ALIGN_VCENTER = 16,
+	ALIGN_BOTTOM = 32,
 };
 
 enum {
@@ -62,6 +67,8 @@ struct tp_config
 	bool shadow;
 	uint32_t shadow_color;
 	int32_t shadow_x, shadow_y;
+
+	uint32_t align_transition;
 
 	uint32_t fadeout_ms, fadein_ms, crossfade_ms;
 };
