@@ -23,9 +23,15 @@ jobs:
     QTDIR32: '$(QtBaseDir)\5.10.1\msvc2017'
     QTDIR64: '$(QtBaseDir)\5.10.1\msvc2017_64'
     OBSPath: 'D:\obs-studio'
+    PangoPath: 'D:\pango-build'
   steps:
     - checkout: self
       submodules: true
+
+    - script: ./ci/windows/prepare-meson.cmd
+      displayName: 'Install Meson'
+      env:
+        build_config: $(build_config)
 
     - script: ./ci/windows/install-qt-win.cmd
       displayName: 'Install Qt'
@@ -42,6 +48,19 @@ jobs:
 
     - script: ./ci/windows/download-obs-deps.cmd
       displayName: 'Download OBS Studio dependencies'
+
+    - script: ./ci/windows/prepare-glib.cmd
+      displayName: 'Setup glib build'
+      env:
+        build_config: $(build_config)
+        PangoPath: $(PangoPath)
+        GitSource: $(Build.Repository.LocalPath)
+
+    - script: ./ci/windows/prepare-pango.cmd
+      displayName: 'Setup pango build'
+      env:
+        build_config: $(build_config)
+        PangoPath: $(PangoPath)
 
     - task: Cache@2
       displayName: Restore cached OBS Studio builds
