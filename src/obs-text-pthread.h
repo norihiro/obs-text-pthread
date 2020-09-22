@@ -51,7 +51,9 @@ struct tp_config
 	uint32_t font_size;
 	uint32_t font_flags;
 	// TODO: font weight stretch gravity
+	char *text;
 	char *text_file;
+	bool from_file;
 	bool markup;
 	uint32_t color;
 	uint32_t width, height;
@@ -110,6 +112,7 @@ static inline void tp_config_destroy_member(struct tp_config *c)
 {
 	BFREE_IF_NONNULL(c->font_name);
 	BFREE_IF_NONNULL(c->font_style);
+	BFREE_IF_NONNULL(c->text);
 	BFREE_IF_NONNULL(c->text_file);
 }
 

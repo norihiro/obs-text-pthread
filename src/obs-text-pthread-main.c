@@ -87,8 +87,15 @@ static void tp_update(void *data, obs_data_t *settings)
 		obs_data_release(font_obj);
 	}
 
+	src->config.from_file = obs_data_get_bool(settings, "from_file");
+	BFREE_IF_NONNULL(src->config.text);
 	BFREE_IF_NONNULL(src->config.text_file);
-	src->config.text_file = bstrdup(obs_data_get_string(settings, "text_file"));
+	if (!src->config.from_file) {
+		src->config.text = bstrdup(obs_data_get_string(settings, "text"));
+	}
+	else {
+		src->config.text_file = bstrdup(obs_data_get_string(settings, "text_file"));
+	}
 	src->config.markup = obs_data_get_bool(settings, "markup");
 
 	src->config.color = tp_data_get_color(settings, "color");
@@ -199,6 +206,8 @@ static obs_properties_t *tp_get_properties(void *unused)
 
 	obs_properties_add_font(props, "font", obs_module_text("Font"));
 
+	obs_properties_add_text(props, "text", obs_module_text("Text file"), OBS_TEXT_MULTILINE);
+	obs_properties_add_bool(props, "from_file", obs_module_text("Read text from a file"));
 	obs_properties_add_path(props, "text_file", obs_module_text("Text file"), OBS_PATH_FILE, NULL, NULL);
 	obs_properties_add_bool(props, "markup", obs_module_text("Pango mark-up"));
 

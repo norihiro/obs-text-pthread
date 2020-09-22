@@ -12,7 +12,7 @@
 #define debug(format, ...)
 // #define debug(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
 
-char *tp_load_text(struct tp_config *config)
+static char *tp_load_text_file(struct tp_config *config)
 {
 	if (!config->text_file) return NULL;
 
@@ -371,22 +371,32 @@ static void *tp_thread_main(void *data)
 		if(config_updated) {
 			BFREE_IF_NONNULL(config_prev.font_name);
 			BFREE_IF_NONNULL(config_prev.font_style);
+			BFREE_IF_NONNULL(config_prev.text);
 			BFREE_IF_NONNULL(config_prev.text_file);
 			memcpy(&config_prev, &src->config, sizeof(struct tp_config));
 			config_prev.font_name = bstrdup(src->config.font_name);
 			config_prev.font_style = bstrdup(src->config.font_style);
-			config_prev.text_file = bstrdup(src->config.text_file);
+			if (!config_prev.from_file) {
+				config_prev.text = bstrdup(src->config.text);
+				config_prev.text_file = NULL;
+			}
+			else {
+				config_prev.text = NULL;
+				config_prev.text_file = bstrdup(src->config.text_file);
+			}
 			src->config_updated = 0;
 		}
 
 		pthread_mutex_unlock(&src->config_mutex);
 
 		// check file status
-		struct stat st = {0};
-		os_stat(config_prev.text_file, &st);
-		if(tp_compare_stat(&st, &st_prev)) {
-			text_updated = 1;
-			memcpy(&st_prev, &st, sizeof(struct stat));
+		if (config_prev.from_file) {
+			struct stat st = {0};
+			os_stat(config_prev.text_file, &st);
+			if(tp_compare_stat(&st, &st_prev)) {
+				text_updated = 1;
+				memcpy(&st_prev, &st, sizeof(struct stat));
+			}
 		}
 
 		// TODO: how long will it take to draw a new texture?
@@ -395,7 +405,7 @@ static void *tp_thread_main(void *data)
 		// load file if changed and draw
 		if (config_updated || text_updated) {
 			uint64_t time_ns = os_gettime_ns();
-			char *text = tp_load_text(&config_prev);
+			char *text = config_prev.from_file ? tp_load_text_file(&config_prev) : config_prev.text;
 			bool b_printable = text ? is_printable(text) : 0;
 
 			// make an early notification
@@ -418,7 +428,8 @@ static void *tp_thread_main(void *data)
 			src->tex_new = pushback_texture(src->tex_new, tex); tex = NULL;
 			pthread_mutex_unlock(&src->tex_mutex);
 
-			BFREE_IF_NONNULL(text);
+			if (config_prev.from_file)
+				BFREE_IF_NONNULL(text);
 
 			debug("tp_draw_texture & tp_draw_texture takes %f ms\n",  (os_gettime_ns() - time_ns) * 1e-6);
 
