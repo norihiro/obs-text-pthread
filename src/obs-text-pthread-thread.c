@@ -259,6 +259,7 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	PangoRectangle ink_rect, logical_rect;
 	pango_layout_get_extents(layout, &ink_rect, &logical_rect);
 	uint32_t surface_ink_height = PANGO_PIXELS_FLOOR(ink_rect.height) + PANGO_PIXELS_FLOOR(ink_rect.y) + outline_width_blur*2 + shadow_abs_y;
+	uint32_t surface_ink_height1 = surface_height > surface_ink_height ? surface_ink_height : surface_height;
 
 	if (shadow_abs_x || shadow_abs_y) {
 		cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
@@ -267,7 +268,7 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 		tp_stroke_path(cr, layout, config, offset_x + config->shadow_x, offset_y + config->shadow_y, config->shadow_color, 0, 0);
 
 		surface_shadow = bzalloc(stride * surface_height);
-		copy_rgba2a(surface_shadow, n->surface, stride, surface_width, surface_ink_height);
+		copy_rgba2a(surface_shadow, n->surface, stride, surface_width, surface_ink_height1);
 		memset(n->surface, 0, stride * surface_height);
 	}
 
@@ -277,19 +278,19 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 		tp_stroke_path(cr, layout, config, offset_x, offset_y, config->outline_color, outline_width, outline_blur);
 
 		surface_outline = bzalloc(stride * surface_height);
-		copy_rgba2a(surface_outline, n->surface, stride, surface_width, surface_ink_height);
+		copy_rgba2a(surface_outline, n->surface, stride, surface_width, surface_ink_height1);
 		memset(n->surface, 0, stride * surface_height);
 	}
 
 	// workaround to draw light transparent color on light surface, which became darker.
 	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-	debug_fill_rgb(n->surface, config->color, stride*surface_ink_height);
+	debug_fill_rgb(n->surface, config->color, stride*surface_ink_height1);
 	uint32_t color_draw = config->color;
 	if (config->outline || config->shadow) color_draw |= 0xFF000000;
 	tp_stroke_path(cr, layout, config, offset_x, offset_y, color_draw, 0, 0);
 
 	if (config->outline || config->shadow)
-		blend_outline_shadow(n->surface, stride, surface_width, surface_ink_height, surface_outline, surface_shadow, config);
+		blend_outline_shadow(n->surface, stride, surface_width, surface_ink_height1, surface_outline, surface_shadow, config);
 
 	g_object_unref(layout);
 	cairo_destroy(cr);
@@ -369,6 +370,8 @@ static void *tp_thread_main(void *data)
 
 		// check config and copy
 		if(config_updated) {
+			if (!config_prev.from_file && !src->config.from_file && config_prev.text && src->config.text && strcmp(config_prev.text, src->config.text))
+				text_updated = true;
 			BFREE_IF_NONNULL(config_prev.font_name);
 			BFREE_IF_NONNULL(config_prev.font_style);
 			BFREE_IF_NONNULL(config_prev.text);
@@ -421,8 +424,8 @@ static void *tp_thread_main(void *data)
 				tex = bzalloc(sizeof(struct tp_texture));
 			}
 			tex->time_ns = time_ns;
-			tex->config_updated = config_updated;
-			tex->is_crossfade = b_printable && b_printable_prev && !config_updated;
+			tex->config_updated = config_updated && !text_updated;
+			tex->is_crossfade = b_printable && b_printable_prev && text_updated;
 
 			pthread_mutex_lock(&src->tex_mutex);
 			src->tex_new = pushback_texture(src->tex_new, tex); tex = NULL;
