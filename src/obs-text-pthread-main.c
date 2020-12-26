@@ -181,7 +181,7 @@ static bool tp_prop_outline_changed(obs_properties_t *props, obs_property_t *pro
 	tp_set_visible(props, "outline_blur", en);
 	tp_set_visible(props, "outline_shape", en);
 
-	return false;
+	return true;
 }
 
 static bool tp_prop_shadow_changed(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
@@ -194,7 +194,7 @@ static bool tp_prop_shadow_changed(obs_properties_t *props, obs_property_t *prop
 	tp_set_visible(props, "shadow_x", en);
 	tp_set_visible(props, "shadow_y", en);
 
-	return false;
+	return true;
 }
 
 static obs_properties_t *tp_get_properties(void *unused)
