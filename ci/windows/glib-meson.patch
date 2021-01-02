@@ -9,3 +9,12 @@
  
  add_project_arguments('-D_GNU_SOURCE', language: 'c')
  
+@@ -126,7 +126,7 @@
+ glib_conf.set_quoted('PACKAGE_TARNAME', 'glib')
+ glib_conf.set_quoted('PACKAGE_URL', '')
+ glib_conf.set_quoted('PACKAGE_VERSION', meson.project_version())
+-glib_conf.set('ENABLE_NLS', 1)
++glib_conf.set('ENABLE_NLS', 0)
+ 
+ # used by the .rc.in files
+ glibconfig_conf.set('LT_CURRENT_MINUS_AGE', soversion)

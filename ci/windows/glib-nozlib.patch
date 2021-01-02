@@ -1,6 +1,15 @@
 --- gio/meson.build	2021-01-02 19:20:21.951615570 +0900
-+++ gio/meson.build	2021-01-02 19:20:09.325491061 +0900
-@@ -573,8 +573,6 @@
++++ gio/meson.build	2021-01-02 19:52:19.203530208 +0900
+@@ -529,8 +529,6 @@
+   'gproxyaddressenumerator.c',
+   'gproxyresolver.c',
+   'gresolver.c',
+-  'gresource.c',
+-  'gresourcefile.c',
+   'gseekable.c',
+   'gsimpleasyncresult.c',
+   'gsimpleiostream.c',
+@@ -573,8 +571,6 @@
    'gvfs.c',
    'gvolume.c',
    'gvolumemonitor.c',
@@ -9,7 +18,15 @@
    'glistmodel.c',
    'gliststore.c',
    '../glib/gtrace.c',
-@@ -707,8 +705,6 @@
+@@ -669,7 +665,6 @@
+   'gproxyaddressenumerator.h',
+   'gproxyresolver.h',
+   'gresolver.h',
+-  'gresource.h',
+   'gseekable.h',
+   'gsimpleasyncresult.h',
+   'gsimpleiostream.h',
+@@ -707,8 +702,6 @@
    'gvfs.h',
    'gvolume.h',
    'gvolumemonitor.h',
