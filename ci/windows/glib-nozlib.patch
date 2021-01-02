@@ -1,0 +1,20 @@
+--- gio/meson.build	2021-01-02 19:20:21.951615570 +0900
++++ gio/meson.build	2021-01-02 19:20:09.325491061 +0900
+@@ -573,8 +573,6 @@
+   'gvfs.c',
+   'gvolume.c',
+   'gvolumemonitor.c',
+-  'gzlibcompressor.c',
+-  'gzlibdecompressor.c',
+   'glistmodel.c',
+   'gliststore.c',
+   '../glib/gtrace.c',
+@@ -707,8 +705,6 @@
+   'gvfs.h',
+   'gvolume.h',
+   'gvolumemonitor.h',
+-  'gzlibcompressor.h',
+-  'gzlibdecompressor.h',
+   'glistmodel.h',
+   'gliststore.h',
+ )

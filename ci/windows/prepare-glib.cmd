@@ -28,6 +28,7 @@ echo configuring glib...
 cd /D %PangoPath%\glib
 patch -p0 < %GitSource%\ci\windows\glib-meson.patch
 patch -p1 < %GitSource%\ci\windows\glib-nolibintl.patch
+patch -p0 < %GitSource%\ci\windows\glib-nozlib.patch
 set INCLUDE=%INCLUDE%;%DepsBasePath%\win64\include
 set LIB=%LIB%;%DepsBasePath%\win64\bin\
 echo INCLUDE=%INCLUDE%
