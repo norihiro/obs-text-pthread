@@ -7,9 +7,9 @@ mkdir %PangoPath%
 cd /D %PangoPath%
 
 echo downloading glib...
-curl -o glib.tar.xz ftp://ftp.gnome.org/pub/gnome/sources/glib/2.65/glib-2.65.1.tar.xz
+curl -L -o glib.tar.xz https://download.gnome.org/sources/glib/2.67/glib-2.67.1.tar.xz
 7z x glib.tar.xz -so | 7z x -si -ttar -aoa > nul
-rename glib-2.65.1 glib
+rename glib-2.67.1 glib
 
 echo downloading libffi...
 curl -o libffi.tar.gz ftp://sourceware.org/pub/libffi/libffi-3.3.tar.gz
