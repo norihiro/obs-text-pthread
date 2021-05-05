@@ -70,12 +70,12 @@ fi
 
 echo "=> ZIP package build"
 ziproot=package-zip/$PLUGIN_NAME
-zipfile=${PLUGIN_NAME}-${GIT_HASH}-macos.zip
+zipfile=${PLUGIN_NAME}-macos.zip
 mkdir -p $ziproot/bin
 cp ./build/$PLUGIN_NAME.so $ziproot/bin/
 cp -a data $ziproot/
 mkdir -p ./release
-chmod +x lib/*.dylib
+chmod +rx lib/*.dylib
 mv lib $ziproot/
 (cd package-zip && zip -r ../release/$zipfile $PLUGIN_NAME)
 
