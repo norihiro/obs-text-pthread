@@ -9,9 +9,13 @@ trigger:
   branches:
     include:
       - master
+      - main
   paths:
     exclude:
       - '**.md'
+  tags:
+    include:
+      - '*'
 
 jobs:
 - job: 'Build_Windows'
