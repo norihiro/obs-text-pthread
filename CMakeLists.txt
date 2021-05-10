@@ -26,6 +26,8 @@ find_package(Pango REQUIRED)
 find_package(Cairo REQUIRED)
 find_package(Pangocairo REQUIRED)
 
+find_package(PNG)
+
 if (WIN32 OR APPLE)
 include(external/FindLibObs.cmake)
 endif()
@@ -72,6 +74,7 @@ include_directories(
 	${PANGO_INCLUDE_DIRS}
 	${CAIRO_INCLUDE_DIRS}
 	${PANGOCAIRO_INCLUDE_DIRS}
+	${PNG_INCLUDE_DIRS}
 )
 
 link_directories(
@@ -85,6 +88,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 	${PANGO_LIBRARIES}
 	${CAIRO_LIBRARIES}
 	${PANGOCAIRO_LIBRARIES}
+	${PNG_LIBRARIES}
 )
 
 # --- End of section ---

@@ -1,4 +1,5 @@
 #include <obs-module.h>
+#include "plugin-macros.generated.h"
 #include <util/platform.h>
 #include <util/threading.h>
 #include <time.h>
@@ -7,6 +8,9 @@
 #include <sys/resource.h>
 #include <string.h>
 #include <pango/pangocairo.h>
+#ifdef PNG_FOUND
+#include <png.h>
+#endif // PNG_FOUND
 #include <inttypes.h>
 #include "obs-text-pthread.h"
 
@@ -354,6 +358,93 @@ static inline bool is_printable(const char *t)
 	return false;
 }
 
+#ifdef PNG_FOUND
+static void png_list_write_config(FILE *fp, const struct tp_config *config, const struct tp_config *prev)
+{
+#define WRITE_IF_UPDATED(val, fmt) \
+	if (!prev || config->val != prev->val) \
+		fprintf(fp, "#\t"#val":\t%"fmt"\n", config->val)
+	WRITE_IF_UPDATED(fadein_ms, PRIu32);
+	WRITE_IF_UPDATED(fadeout_ms, PRIu32);
+	WRITE_IF_UPDATED(crossfade_ms, PRIu32);
+}
+
+static FILE *fopen_png_list(uint64_t ns, const struct tp_config *config)
+{
+	uint64_t ms = ns / 1000000;
+	char *fname = bmalloc(strlen(config->save_file_dir) + 24);
+	sprintf(fname, "%s/list-%08ds%03d.dat", config->save_file_dir, (int)(ms/1000), (int)(ms%1000));
+	FILE *fp = fopen(fname, "w");
+	bfree(fname);
+	png_list_write_config(fp, config, NULL);
+	return fp;
+}
+
+static void save_to_png(const uint8_t *surface, int width, int height, uint64_t ns, FILE *fp_png_list, const struct tp_config *config)
+{
+	uint64_t ms = ns / 1000000;
+	char *fname = bmalloc(strlen(config->save_file_dir) + 24);
+	sprintf(fname, "%s/text-%08ds%03d.png", config->save_file_dir, (int)(ms/1000), (int)(ms%1000));
+	FILE *fp = fopen(fname, "wb");
+	if (!fp) {
+		blog(LOG_ERROR, "text-pthread: save_to_png: failed to open %s", fname);
+		bfree(fname);
+		return;
+	}
+
+	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (!png_ptr) {
+		blog(LOG_ERROR, "text-pthread: save_to_png: png_create_write_struct failed");
+		fclose(fp);
+		bfree(fname);
+		return;
+	}
+	// TODO: use png_create_write_struct_2 instead so that bzalloc and bfree can check memory leak
+
+	png_infop info_ptr = png_create_info_struct(png_ptr);
+	if (!info_ptr) {
+		blog(LOG_ERROR, "text-pthread: save_to_png: png_create_info_struct failed");
+		png_destroy_write_struct(&png_ptr, NULL);
+		fclose(fp);
+		bfree(fname);
+		return;
+	}
+
+	if (setjmp(png_jmpbuf(png_ptr))) {
+		blog(LOG_ERROR, "text-pthread: save_to_png: png_jmpbuf failed");
+		png_destroy_write_struct(&png_ptr, &info_ptr);
+		fclose(fp);
+		bfree(fname);
+		return;
+	}
+
+	png_init_io(png_ptr, fp);
+
+	// you may call png_set_filter to tune the speed
+
+	png_set_IHDR(png_ptr, info_ptr, width, height, 8, PNG_COLOR_TYPE_RGB_ALPHA, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+	png_write_info(png_ptr, info_ptr);
+	for (int y=0; y<height; y++) {
+		png_write_row(png_ptr, surface + y*width*4);
+	}
+
+	png_write_end(png_ptr, info_ptr);
+	png_destroy_write_struct(&png_ptr, &info_ptr);
+	fclose(fp);
+
+	if (fp_png_list) {
+		fprintf(fp_png_list, "%"PRIu64"\ttext-%08ds%03d.png\t%d\t%d\n", ms, (int)(ms/1000), (int)(ms%1000), width, height);
+	}
+	bfree(fname);
+}
+
+static void png_list_empty(uint64_t ns, FILE *fp_png_list)
+{
+	uint64_t ms = ns / 1000000;
+	fprintf(fp_png_list, "%"PRIu64"\t-\n", ms);
+}
+#endif // PNG_FOUND
+
 static void *tp_thread_main(void *data)
 {
 	struct tp_source *src = data;
@@ -361,6 +452,9 @@ static void *tp_thread_main(void *data)
 	struct stat st_prev = {0};
 	struct tp_config config_prev = {0};
 	bool b_printable_prev = false;
+#ifdef PNG_FOUND
+	FILE *fp_png_list = NULL;
+#endif // PNG_FOUND
 
 	setpriority(PRIO_PROCESS, 0, 19);
 	os_set_thread_name("text-pthread");
@@ -372,15 +466,32 @@ static void *tp_thread_main(void *data)
 
 		bool config_updated = src->config_updated;
 		bool text_updated = false;
+#ifdef PNG_FOUND
+		bool save_file_updated = false;
+#endif // PNG_FOUND
 
 		// check config and copy
 		if(config_updated) {
 			if (!config_prev.from_file && !src->config.from_file && config_prev.text && src->config.text && strcmp(config_prev.text, src->config.text))
 				text_updated = true;
+#ifdef PNG_FOUND
+			if (config_prev.save_file != src->config.save_file)
+				save_file_updated = true;
+			else if (!src->config.save_file)
+				save_file_updated = false;
+			else if (strcmp(config_prev.save_file_dir, src->config.save_file_dir))
+				save_file_updated = true;
+			if (fp_png_list && !save_file_updated)
+				png_list_write_config(fp_png_list, &src->config, &config_prev);
+#endif // PNG_FOUND
+
 			BFREE_IF_NONNULL(config_prev.font_name);
 			BFREE_IF_NONNULL(config_prev.font_style);
 			BFREE_IF_NONNULL(config_prev.text);
 			BFREE_IF_NONNULL(config_prev.text_file);
+#ifdef PNG_FOUND
+			BFREE_IF_NONNULL(config_prev.save_file_dir);
+#endif // PNG_FOUND
 			memcpy(&config_prev, &src->config, sizeof(struct tp_config));
 			config_prev.font_name = bstrdup(src->config.font_name);
 			config_prev.font_style = bstrdup(src->config.font_style);
@@ -392,6 +503,9 @@ static void *tp_thread_main(void *data)
 				config_prev.text = NULL;
 				config_prev.text_file = bstrdup(src->config.text_file);
 			}
+#ifdef PNG_FOUND
+			config_prev.save_file_dir = src->config.save_file ? bstrdup(src->config.save_file_dir) : NULL;
+#endif // PNG_FOUND
 			src->config_updated = 0;
 		}
 
@@ -415,6 +529,11 @@ static void *tp_thread_main(void *data)
 			uint64_t time_ns = os_gettime_ns();
 			char *text = config_prev.from_file ? tp_load_text_file(&config_prev) : config_prev.text;
 			bool b_printable = text ? is_printable(text) : 0;
+#ifdef PNG_FOUND
+			uint8_t *png_surface = NULL;
+			int png_width = 0;
+			int png_height = 0;
+#endif // PNG_FOUND
 
 			// make an early notification
 			if(b_printable) {
@@ -424,6 +543,14 @@ static void *tp_thread_main(void *data)
 			struct tp_texture *tex;
 			if(b_printable) {
 				tex = tp_draw_texture(&config_prev, text);
+#ifdef PNG_FOUND
+				if (config_prev.save_file) {
+					png_width = tex->width;
+					png_height = tex->height;
+					png_surface = bzalloc(4*png_width*png_height);
+					memcpy(png_surface, tex->surface, 4*png_width*png_height);
+				}
+#endif // PNG_FOUND
 			}
 			else {
 				tex = bzalloc(sizeof(struct tp_texture));
@@ -443,10 +570,35 @@ static void *tp_thread_main(void *data)
 
 			if (text_updated)
 				b_printable_prev = b_printable;
+
+#ifdef PNG_FOUND
+			if (save_file_updated) {
+				if (fp_png_list) {
+					fclose(fp_png_list);
+					fp_png_list = NULL;
+				}
+				if (config_prev.save_file) {
+					fp_png_list = fopen_png_list(time_ns, &config_prev);
+				}
+			}
+			if (png_surface && fp_png_list) {
+				save_to_png(png_surface, png_width, png_height, time_ns, fp_png_list, &config_prev);
+			}
+			else if (fp_png_list) {
+				png_list_empty(time_ns, fp_png_list);
+			}
+			BFREE_IF_NONNULL(png_surface);
+#endif // PNG_FOUND
 		}
 
 	}
 
+#ifdef PNG_FOUND
+	if (fp_png_list) {
+		png_list_empty(os_gettime_ns(), fp_png_list);
+		fclose(fp_png_list);
+	}
+#endif // PNG_FOUND
 	tp_config_destroy_member(&config_prev);
 	return NULL;
 }

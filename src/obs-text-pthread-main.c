@@ -129,6 +129,20 @@ static void tp_update(void *data, obs_data_t *settings)
 
 	src->config.slide_pxps = obs_data_get_int(settings, "slide_pxps");
 
+#ifdef PNG_FOUND
+	src->config.save_file = obs_data_get_bool(settings, "save_file");
+	BFREE_IF_NONNULL(src->config.save_file_dir);
+	if (src->config.save_file) {
+		const char *s = obs_data_get_string(settings, "save_file_dir");
+		if (*s)
+			src->config.save_file_dir = bstrdup(s);
+		else {
+			blog(LOG_ERROR, "save_file_dir is not specified");
+			src->config.save_file = false;
+		}
+	}
+#endif // PNG_FOUND
+
 	src->config_updated = true;
 
 	pthread_mutex_unlock(&src->config_mutex);
@@ -276,6 +290,11 @@ static obs_properties_t *tp_get_properties(void *unused)
 	obs_properties_add_int(props, "crossfade_ms", obs_module_text("Crossfade time [ms]"), 0, 4294, 100);
 
 	obs_properties_add_int(props, "slide_pxps", obs_module_text("Slide [px/s] (0 to disable)"), 0, 65500, 50);
+
+#ifdef PNG_FOUND
+	obs_properties_add_bool(props, "save_file", obs_module_text("Save as PNG"));
+	obs_properties_add_path(props, "save_file_dir", obs_module_text("Directory to save"), OBS_PATH_DIRECTORY, NULL, NULL);
+#endif // PNG_FOUND
 
 	return props;
 }

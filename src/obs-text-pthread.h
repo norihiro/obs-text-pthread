@@ -77,6 +77,11 @@ struct tp_config
 
 	uint32_t fadeout_ms, fadein_ms, crossfade_ms;
 	uint32_t slide_pxps; // pixel/s, or 0 to disable
+
+#ifdef PNG_FOUND
+	bool save_file;
+	char *save_file_dir;
+#endif // PNG_FOUND
 };
 
 struct tp_source
@@ -114,6 +119,9 @@ static inline void tp_config_destroy_member(struct tp_config *c)
 	BFREE_IF_NONNULL(c->font_style);
 	BFREE_IF_NONNULL(c->text);
 	BFREE_IF_NONNULL(c->text_file);
+#ifdef PNG_FOUND
+	BFREE_IF_NONNULL(c->save_file_dir);
+#endif // PNG_FOUND
 }
 
 
