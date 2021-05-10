@@ -7,6 +7,7 @@
 #include <sys/resource.h>
 #include <string.h>
 #include <pango/pangocairo.h>
+#include <inttypes.h>
 #include "obs-text-pthread.h"
 
 #define debug(format, ...)
@@ -297,13 +298,17 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	cairo_surface_destroy(surface);
 
 	if (config->shrink_size) {
-		n->width = PANGO_PIXELS_CEIL(logical_rect.x+logical_rect.width) + outline_width_blur*2 + shadow_abs_x;
+		uint32_t xoff = PANGO_PIXELS_FLOOR(logical_rect.x);
+		if (xoff < 0) {
+			n->width = PANGO_PIXELS_CEIL(logical_rect.x + logical_rect.width) + outline_width_blur*2 + shadow_abs_x;
+			xoff = 0;
+		}
+		else
+			n->width = PANGO_PIXELS_CEIL(logical_rect.width) + outline_width_blur*2 + shadow_abs_x;
 		if (n->width > surface_width) n->width = surface_width;
 		n->height = PANGO_PIXELS_CEIL(logical_rect.y + logical_rect.height) + outline_width_blur*2 + shadow_abs_y;
 		if (n->height > surface_height) n->height = surface_height;
 		if (n->width != surface_width) {
-			uint32_t xoff = PANGO_PIXELS_FLOOR(logical_rect.x);
-			if (xoff < 0) xoff = 0;
 			uint32_t new_stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, n->width);
 			for (uint32_t y=1; y<n->height; y++) {
 				memmove(n->surface+new_stride*y, n->surface+stride*y + xoff*4, new_stride);
