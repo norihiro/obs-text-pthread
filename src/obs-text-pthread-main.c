@@ -13,6 +13,8 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 static inline uint64_t max_u64(uint64_t a, uint64_t b) { if (a>b) return a; return b; }
 
+static gs_effect_t *textalpha_effect = NULL;
+
 #define tp_data_get_color(s, c) tp_data_get_color2(s, c, c".alpha")
 static inline uint32_t tp_data_get_color2(obs_data_t *settings, const char *color, const char *alpha)
 {
@@ -39,6 +41,16 @@ static void *tp_create(obs_data_t *settings, obs_source_t *source)
 {
 	UNUSED_PARAMETER(source);
 	struct tp_source *src = bzalloc(sizeof(struct tp_source));
+
+	obs_enter_graphics();
+	if (!textalpha_effect) {
+		char *f = obs_module_file("textalpha.effect");
+		textalpha_effect = gs_effect_create_from_file(f, NULL);
+		if (!textalpha_effect)
+			blog(LOG_ERROR, "Cannot load '%s'", f);
+		bfree(f);
+	}
+	obs_leave_graphics();
 
 	pthread_mutex_init(&src->config_mutex, NULL);
 	pthread_mutex_init(&src->tex_mutex, NULL);
@@ -334,34 +346,20 @@ static uint32_t tp_get_height(void *data)
 
 static void tp_surface_to_texture(struct tp_texture *t)
 {
-	if(t->surface && (!t->tex || t->fade_alpha != t->fade_alpha_cached)) {
-		uint8_t *surface = t->surface;
-		uint8_t *tmp = NULL;
-		if (t->fade_alpha < 255) {
-			size_t len = 4 * t->width * t->height;
-			tmp = bmalloc(len);
-			for(int i=0; i<len; i+=4) {
-				tmp[i+0] = surface[i+0];
-				tmp[i+1] = surface[i+1];
-				tmp[i+2] = surface[i+2];
-				tmp[i+3] = surface[i+3] * (int)t->fade_alpha / 255;
-			}
-			surface = tmp;
-		}
+	if(t->surface && !t->tex) {
+		const uint8_t *surface = t->surface;
 
 		if (t->tex) gs_texture_destroy(t->tex);
-		t->tex = gs_texture_create(t->width, t->height, GS_BGRA, 1, (const uint8_t**)&surface, 0);
-		t->fade_alpha_cached = t->fade_alpha;
-
-		if(tmp) bfree(tmp);
+		t->tex = gs_texture_create(t->width, t->height, GS_BGRA, 1, &surface, 0);
 	}
 }
-
 
 static void tp_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
 	struct tp_source *src = data;
+	if (!textalpha_effect)
+		return;
 
 	obs_enter_graphics();
 	gs_reset_blend_state();
@@ -375,7 +373,6 @@ static void tp_render(void *data, gs_effect_t *effect)
 		if (t->slide_u>0 && t->slide_u > t->height) continue;
 		if (t->slide_u<0 && (-t->slide_u) > t->height) continue;
 		tp_surface_to_texture(t);
-		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), t->tex);
 		int y0 = t->slide_u>0 ? t->slide_u : 0;
 		int y1 = t->slide_u<0 ? t->height+t->slide_u : t->height;
 		xoff = 0;
@@ -394,7 +391,11 @@ static void tp_render(void *data, gs_effect_t *effect)
 			gs_matrix_push();
 			gs_matrix_translate3f(xoff, yoff, 0);
 		}
-		gs_draw_sprite_subregion(t->tex, 0, 0, y0, t->width, y1);
+		gs_effect_set_texture(gs_effect_get_param_by_name(textalpha_effect, "image"), t->tex);
+		gs_effect_set_float(gs_effect_get_param_by_name(textalpha_effect, "alpha"), t->fade_alpha/255.f);
+		while (gs_effect_loop(textalpha_effect, "Draw")) {
+			gs_draw_sprite_subregion(t->tex, 0, 0, y0, t->width, y1);
+		}
 		if (xoff || yoff)
 			gs_matrix_pop();
 
@@ -594,7 +595,7 @@ static void tp_tick(void *data, float seconds)
 static struct obs_source_info tp_src_info = {
 	.id = "obs_text_pthread_source",
 	.type = OBS_SOURCE_TYPE_INPUT,
-	.output_flags = OBS_SOURCE_VIDEO,
+	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,
 	.get_name = tp_get_name,
 	.create = tp_create,
 	.destroy = tp_destroy,
@@ -617,5 +618,9 @@ bool obs_module_load(void)
 
 void obs_module_unload()
 {
+	if (textalpha_effect) {
+		gs_effect_destroy(textalpha_effect);
+		textalpha_effect = NULL;
+	}
 	blog(LOG_INFO, "plugin unloaded");
 }

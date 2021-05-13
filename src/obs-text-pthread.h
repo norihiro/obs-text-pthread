@@ -17,7 +17,6 @@ struct tp_texture
 	uint64_t fadein_start_ns, fadein_end_ns;
 	uint64_t fadeout_start_ns, fadeout_end_ns;
 	int fade_alpha;
-	int fade_alpha_cached;
 	uint64_t slidein_end_ns, slideout_start_ns;
 	int slide_u; // >0: slide-out, <0: slide-in
 	int slide_h; // height during slide
