@@ -80,6 +80,7 @@ include_directories(
 link_directories(
 	${PANGO_LIBRARY_DIRS}
 	${CAIRO_LIBRARY_DIRS}
+	${PANGOCAIRO_LIBRARY_DIRS}
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
@@ -208,6 +209,6 @@ if(APPLE)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -fvisibility=default")
 
 	set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES PREFIX "")
-	target_link_libraries(${CMAKE_PROJECT_NAME} "${OBS_FRONTEND_LIB}")
+	#target_link_libraries(${CMAKE_PROJECT_NAME} "${OBS_FRONTEND_LIB}")
 endif()
 # -- End of section --

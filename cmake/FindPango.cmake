@@ -1,7 +1,7 @@
 find_package(PkgConfig)
-pkg_check_modules(PC_PANGO pango QUIET)
+pkg_check_modules(PC_PANGO pango)
 if(PC_PANGO_FOUND)
-	find_package_handle_standard_args(PANGO DEFAULT_MSG
+	find_package_handle_standard_args(Pango DEFAULT_MSG
 		PC_PANGO_INCLUDE_DIRS PC_PANGO_LIBRARIES
 	)
 

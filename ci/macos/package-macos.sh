@@ -13,8 +13,6 @@ if [ "${OSTYPE}" != "Darwin" ]; then
 fi
 
 echo "=> Preparing package build"
-export QT_CELLAR_PREFIX="$(/usr/bin/find /usr/local/Cellar/qt -d 1 | sort -t '.' -k 1,1n -k 2,2n -k 3,3n | tail -n 1)"
-
 GIT_HASH=$(git rev-parse --short HEAD)
 GIT_BRANCH_OR_TAG=$(git name-rev --name-only HEAD | awk -F/ '{print $NF}')
 
@@ -24,18 +22,34 @@ FILENAME_UNSIGNED="$PLUGIN_NAME-$PKG_VERSION-Unsigned.pkg"
 FILENAME="$PLUGIN_NAME-$PKG_VERSION.pkg"
 
 echo "=> Modifying $PLUGIN_NAME.so"
+mkdir lib
+for dylib in \
+	/usr/local/opt/cairo/lib/*.dylib \
+	/usr/local/opt/pango/lib/*.dylib \
+	/usr/local/opt/pangocairo/lib/*.dylib
+do
+	cp $dylib lib/
+	b=$(basename $dylib)
+	install_name_tool -id "@loader_path/$b" lib/$b
+	install_name_tool -change "$dylib" "@loader_path/../lib/$b" ./build/$PLUGIN_NAME.so
+done
+
 install_name_tool \
-	-change /usr/local/opt/qt/lib/QtWidgets.framework/Versions/5/QtWidgets \
+	-change /tmp/obsdeps/lib/QtWidgets.framework/Versions/5/QtWidgets \
 		@executable_path/../Frameworks/QtWidgets.framework/Versions/5/QtWidgets \
-	-change /usr/local/opt/qt/lib/QtGui.framework/Versions/5/QtGui \
+	-change /tmp/obsdeps/lib/QtGui.framework/Versions/5/QtGui \
 		@executable_path/../Frameworks/QtGui.framework/Versions/5/QtGui \
-	-change /usr/local/opt/qt/lib/QtCore.framework/Versions/5/QtCore \
+	-change /tmp/obsdeps/lib/QtCore.framework/Versions/5/QtCore \
 		@executable_path/../Frameworks/QtCore.framework/Versions/5/QtCore \
 	./build/$PLUGIN_NAME.so
 
 # Check if replacement worked
-echo "=> Dependencies for $PLUGIN_NAME"
-otool -L ./build/$PLUGIN_NAME.so
+for dylib in ./build/$PLUGIN_NAME.so lib/*.dylib ; do
+	echo "=> Dependencies for $(basename $dylib)"
+	otool -L $dylib
+	echo "=> Search paths written in $(basename $dylib)"
+	otool -l $dylib
+done
 
 if [[ "$RELEASE_MODE" == "True" ]]; then
 	echo "=> Signing plugin binary: $PLUGIN_NAME.so"
@@ -44,11 +58,22 @@ else
 	echo "=> Skipped plugin codesigning"
 fi
 
-echo "=> Actual package build"
-packagesbuild ./installer/installer-macOS.generated.pkgproj
+echo "=> ZIP package build"
+ziproot=package-zip/$PLUGIN_NAME
+zipfile=${PLUGIN_NAME}-${GIT_HASH}-macos.zip
+mkdir -p $ziproot/bin
+cp ./build/$PLUGIN_NAME.so $ziproot/bin/
+cp -a data $ziproot/
+mkdir -p ./release
+chmod +x lib/*.dylib
+mv lib $ziproot/
+(cd package-zip && zip -r ../release/$zipfile $PLUGIN_NAME)
 
-echo "=> Renaming $PLUGIN_NAME.pkg to $FILENAME"
-mv ./release/$PLUGIN_NAME.pkg ./release/$FILENAME_UNSIGNED
+# echo "=> Actual package build"
+# packagesbuild ./installer/installer-macOS.generated.pkgproj
+
+# echo "=> Renaming $PLUGIN_NAME.pkg to $FILENAME"
+# mv ./release/$PLUGIN_NAME.pkg ./release/$FILENAME_UNSIGNED
 
 if [[ "$RELEASE_MODE" == "True" ]]; then
 	echo "=> Signing installer: $FILENAME"

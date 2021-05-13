@@ -18,8 +18,9 @@ fi
 
 echo "=> Building plugin for macOS."
 mkdir -p build && cd build
+export PKG_CONFIG_PATH="/usr/local/Cellar/pango/1.48.4/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
 cmake .. \
-	-DQTDIR=/usr/local/opt/qt \
+	-DQTDIR="/tmp/obsdeps" \
 	-DLIBOBS_INCLUDE_DIR=../../obs-studio/libobs \
 	-DLIBOBS_LIB=../../obs-studio/libobs \
 	-DOBS_FRONTEND_LIB="$(pwd)/../../obs-studio/build/UI/obs-frontend-api/libobs-frontend-api.dylib" \
