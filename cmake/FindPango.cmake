@@ -1,52 +1,89 @@
+# FindPango.cmake
+# <https://github.com/nemequ/gnome-cmake>
+#
+# CMake support for Pango.
+#
+# License:
+#
+#   Copyright (c) 2016 Evan Nemerson <evan@nemerson.com>
+#
+#   Permission is hereby granted, free of charge, to any person
+#   obtaining a copy of this software and associated documentation
+#   files (the "Software"), to deal in the Software without
+#   restriction, including without limitation the rights to use, copy,
+#   modify, merge, publish, distribute, sublicense, and/or sell copies
+#   of the Software, and to permit persons to whom the Software is
+#   furnished to do so, subject to the following conditions:
+#
+#   The above copyright notice and this permission notice shall be
+#   included in all copies or substantial portions of the Software.
+#
+#   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+#   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+#   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+#   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+#   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+#   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+#   DEALINGS IN THE SOFTWARE.
+
 find_package(PkgConfig)
-pkg_check_modules(PC_PANGO pango)
-if(PC_PANGO_FOUND)
-	find_package_handle_standard_args(Pango DEFAULT_MSG
-		PC_PANGO_INCLUDE_DIRS PC_PANGO_LIBRARIES
-	)
 
-	mark_as_advanced(PC_PANGO_FOUND)
-	set(PANGO_INCLUDE_DIRS ${PC_PANGO_INCLUDE_DIRS})
-	set(PANGO_LIBRARIES ${PC_PANGO_LIBRARIES})
-	set(PANGO_LIBRARY_DIRS ${PC_PANGO_LIBRARY_DIRS})
-	return()
+set(Pango_DEPS
+  GLib)
+
+if(PKG_CONFIG_FOUND)
+  pkg_search_module(Pango_PKG pango)
+  message("Pango_PKG_FOUND=${Pango_PKG_FOUND}")
+  message("Pango_PKG_INCLUDE_DIRS=${Pango_PKG_INCLUDE_DIRS}")
+  message("Pango_PKG_LIBRARIES=${Pango_PKG_LIBRARIES}")
 endif()
 
-# Try manually if no pkg-config
-find_path(PANGO_INCLUDE_DIR
-    NAMES
-        pango/pango.h
-    HINTS
-        ${PC_PANGO_INCLUDEDIR}
-        ${PC_PANGO_INCLUDE_DIRS}
-)
+find_library(Pango_LIBRARY pango HINTS ${Pango_PKG_LIBRARY_DIRS})
+set(Pango pango)
 
-find_library(PANGO_LIBRARY
-    NAMES
-        pango libpango pango-1.0
-    HINTS
-        ${PC_PANGO_LIBDIR}
-        ${PC_PANGO_LIBRARIES}
-    PATH_SUFFIXES
-        pango
-)
+if(Pango_LIBRARY AND NOT Pango_FOUND)
+  add_library(${Pango} SHARED IMPORTED)
+  set_property(TARGET ${Pango} PROPERTY IMPORTED_LOCATION "${Pango_LIBRARY}")
+  set_property(TARGET ${Pango} PROPERTY INTERFACE_COMPILE_OPTIONS "${Pango_PKG_CFLAGS_OTHER}")
 
-pkg_check_modules(PC_GLIB REQUIRED glib-2.0)
-pkg_check_modules(PC_GOBJECT REQUIRED gobject-2.0)
-pkg_check_modules(PC_GMODULE REQUIRED gmodule-2.0)
+  find_path(Pango_INCLUDE_DIR "pango/pango.h"
+    HINTS ${Pango_PKG_INCLUDE_DIRS})
 
-if(PANGO_LIBRARY) # avoid false positive finds
-    list(APPEND PANGO_LIBRARY ${PC_GLIB_LIBRARIES} ${PC_GOBJECT_LIBRARIES} ${PC_GMODULE_LIBRARIES})
-    list(APPEND PANGO_INCLUDE_DIR ${PC_GLIB_INCLUDE_DIRS} ${PC_OBJECT_INCLUDE_DIRS} ${PC_GMODULE_INCLUDE_DIRS})
-    list(APPEND PANGO_LIBRARY_DIR ${PC_GLIB_LIBRARY_DIRS} ${PC_GOBJECT_LIBRARY_DIRS} ${PC_GMODULE_LIBRARY_DIRS})
+  if(Pango_INCLUDE_DIR)
+    file(STRINGS "${Pango_INCLUDE_DIR}/pango/pango-features.h" Pango_MAJOR_VERSION REGEX "^#define PANGO_VERSION_MAJOR +\\(?([0-9]+)\\)?$")
+    string(REGEX REPLACE "^#define PANGO_VERSION_MAJOR \\(?([0-9]+)\\)?" "\\1" Pango_MAJOR_VERSION "${Pango_MAJOR_VERSION}")
+    file(STRINGS "${Pango_INCLUDE_DIR}/pango/pango-features.h" Pango_MINOR_VERSION REGEX "^#define PANGO_VERSION_MINOR +\\(?([0-9]+)\\)?$")
+    string(REGEX REPLACE "^#define PANGO_VERSION_MINOR \\(?([0-9]+)\\)?" "\\1" Pango_MINOR_VERSION "${Pango_MINOR_VERSION}")
+    file(STRINGS "${Pango_INCLUDE_DIR}/pango/pango-features.h" Pango_MICRO_VERSION REGEX "^#define PANGO_VERSION_MICRO +\\(?([0-9]+)\\)?$")
+    string(REGEX REPLACE "^#define PANGO_VERSION_MICRO \\(?([0-9]+)\\)?" "\\1" Pango_MICRO_VERSION "${Pango_MICRO_VERSION}")
+    set(Pango_VERSION "${Pango_MAJOR_VERSION}.${Pango_MINOR_VERSION}.${Pango_MICRO_VERSION}")
+    unset(Pango_MAJOR_VERSION)
+    unset(Pango_MINOR_VERSION)
+    unset(Pango_MICRO_VERSION)
+
+    list(APPEND Pango_INCLUDE_DIRS ${Pango_INCLUDE_DIR})
+    set_property(TARGET ${Pango} PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${Pango_INCLUDE_DIR}")
+  endif()
 endif()
+
+set(Pango_DEPS_FOUND_VARS)
+foreach(pango_dep ${Pango_DEPS})
+  find_package(${pango_dep})
+
+  list(APPEND Pango_DEPS_FOUND_VARS "${pango_dep}_FOUND")
+  list(APPEND Pango_INCLUDE_DIRS ${${pango_dep}_INCLUDE_DIRS})
+
+  set_property (TARGET "${Pango}" APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${${pango_dep}}")
+endforeach(pango_dep)
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(PANGO DEFAULT_MSG 
-    PANGO_INCLUDE_DIR PANGO_LIBRARY
-)
+find_package_handle_standard_args(Pango
+    REQUIRED_VARS
+      Pango_LIBRARY
+      Pango_INCLUDE_DIRS
+      ${Pango_DEPS_FOUND_VARS}
+    VERSION_VAR
+      Pango_VERSION)
 
-mark_as_advanced(PANGO_INCLUDE_DIR PANGO_LIBRARY PANGO_LIBRARY_DIR)
-set(PANGO_INCLUDE_DIRS ${PANGO_INCLUDE_DIR})
-set(PANGO_LIBRARIES ${PANGO_LIBRARY})
-set(PANGO_LIBRARY_DIRS ${PANGO_LIBRARY_DIR})
+unset(Pango_DEPS_FOUND_VARS)

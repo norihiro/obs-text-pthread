@@ -22,9 +22,17 @@ else()
 	set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/plugins/obs-text-pango/cmake/")
 endif()
 
-find_package(Pango REQUIRED)
-find_package(Cairo REQUIRED)
-find_package(Pangocairo REQUIRED)
+find_package(PkgConfig)
+
+if(PKG_CONFIG_FOUND)
+	pkg_search_module(Pango pango)
+	pkg_search_module(Cairo cairo)
+	pkg_search_module(PangoCairo pangocairo)
+else()
+	find_package(Pango REQUIRED)
+	find_package(Cairo REQUIRED)
+	find_package(PangoCairo REQUIRED)
+endif()
 
 find_package(PNG)
 
@@ -33,6 +41,12 @@ include(external/FindLibObs.cmake)
 endif()
 
 find_package(LibObs REQUIRED)
+
+link_directories(
+	${Pango_LIBRARY_DIRS}
+	${Cairo_LIBRARY_DIRS}
+	${PangoCairo_LIBRARY_DIRS}
+)
 
 configure_file(
     src/plugin-macros.h.in
@@ -71,24 +85,30 @@ add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES} ${PLUGIN_HEADERS})
 
 include_directories(
 	"${LIBOBS_INCLUDE_DIR}/../UI/obs-frontend-api"
-	${PANGO_INCLUDE_DIRS}
-	${CAIRO_INCLUDE_DIRS}
-	${PANGOCAIRO_INCLUDE_DIRS}
+	${GLib_INCLUDE_DIRS}
+	${Pango_INCLUDE_DIRS}
+	${Cairo_INCLUDE_DIRS}
+	${PangoCairo_INCLUDE_DIRS}
 	${PNG_INCLUDE_DIRS}
 )
 
-link_directories(
-	${PANGO_LIBRARY_DIRS}
-	${CAIRO_LIBRARY_DIRS}
-	${PANGOCAIRO_LIBRARY_DIRS}
-)
+message("GLib_LIBRARY=${GLib_LIBRARY}")
+message("Pango_INCLUDE_DIRS=${Pango_INCLUDE_DIRS}")
+message("Pango_LIBRARIES=${Pango_LIBRARIES}")
+message("Pango_LIBRARY_DIRS=${Pango_LIBRARY_DIRS}")
+message("Cairo_INCLUDE_DIRS=${Cairo_INCLUDE_DIRS}")
+message("Cairo_LIBRARIES=${Cairo_LIBRARIES}")
+message("Cairo_LIBRARY_DIRS=${Cairo_LIBRARY_DIRS}")
+message("PangoCairo_INCLUDE_DIRS=${PangoCairo_INCLUDE_DIRS}")
+message("PangoCairo_LIBRARIES=${PangoCairo_LIBRARIES}")
+message("PangoCairo_LIBRARY_DIRS=${PangoCairo_LIBRARY_DIRS}")
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
 	libobs
 	${OBS_LIBRARIES}
-	${PANGO_LIBRARIES}
-	${CAIRO_LIBRARIES}
-	${PANGOCAIRO_LIBRARIES}
+	${Pango_LIBRARIES}
+	${Cairo_LIBRARIES}
+	${PangoCairo_LIBRARIES}
 	${PNG_LIBRARIES}
 )
 

@@ -1,87 +1,87 @@
-# - Try to find Cairo
-# Once done, this will define
+# FindCairo.cmake
+# <https://github.com/nemequ/gnome-cmake>
 #
-#  CAIRO_FOUND - system has Cairo
-#  CAIRO_INCLUDE_DIRS - the Cairo include directories
-#  CAIRO_LIBRARIES - link these to use Cairo
+# CMake support for Cairo.
 #
-# Copyright (C) 2012 Raphael Kubo da Costa <rakuco@webkit.org>
+# License:
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-# 1.  Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-# 2.  Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in the
-#     documentation and/or other materials provided with the distribution.
+#   Copyright (c) 2016 Evan Nemerson <evan@nemerson.com>
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER AND ITS CONTRIBUTORS ``AS
-# IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-# THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR ITS
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
-# OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
-# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#   Permission is hereby granted, free of charge, to any person
+#   obtaining a copy of this software and associated documentation
+#   files (the "Software"), to deal in the Software without
+#   restriction, including without limitation the rights to use, copy,
+#   modify, merge, publish, distribute, sublicense, and/or sell copies
+#   of the Software, and to permit persons to whom the Software is
+#   furnished to do so, subject to the following conditions:
+#
+#   The above copyright notice and this permission notice shall be
+#   included in all copies or substantial portions of the Software.
+#
+#   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+#   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+#   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+#   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+#   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+#   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+#   DEALINGS IN THE SOFTWARE.
 
-FIND_PACKAGE(PkgConfig)
-PKG_CHECK_MODULES(PC_CAIRO cairo) # FIXME: After we require CMake 2.8.2 we can pass QUIET to this call.
+find_package(PkgConfig)
 
-FIND_PATH(CAIRO_INCLUDE_DIR
-    NAMES cairo.h
-    HINTS ${PC_CAIRO_INCLUDEDIR}
-          ${PC_CAIRO_INCLUDE_DIRS}
-    PATH_SUFFIXES cairo
-)
+set(Cairo_DEPS)
 
-include(CheckSymbolExists)
-set(CMAKE_REQUIRED_INCLUDES ${CAIRO_INCLUDE_DIR})
-check_symbol_exists(CAIRO_HAS_WIN32_SURFACE cairo.h CAIRO_WIN32_FOUND)
-check_symbol_exists(CAIRO_HAS_PNG_FUNCTIONS cairo.h CAIRO_PNG_FOUND)
-check_symbol_exists(CAIRO_HAS_FT_FONT cairo.h CAIRO_FT_FOUND)
-check_symbol_exists(CAIRO_HAS_FC_FONT cairo.h CAIRO_FC_FOUND)
-check_symbol_exists(CAIRO_HAS_PS_SURFACE cairo.h CAIRO_PS_FOUND)
-check_symbol_exists(CAIRO_HAS_PDF_SURFACE cairo.h CAIRO_PDF_FOUND)
-check_symbol_exists(CAIRO_HAS_SVG_SURFACE cairo.h CAIRO_SVG_FOUND)
-
-FIND_LIBRARY(CAIRO_LIBRARY
-    NAMES cairo
-    HINTS ${PC_CAIRO_LIBDIR}
-          ${PC_CAIRO_LIBRARY_DIRS}
-)
-
-FIND_LIBRARY(CAIRO_STATIC_LIBRARIES
-    NAMES cairo-static
-    HINTS ${PC_CAIRO_LIBDIR}
-          ${PC_CAIRO_LIBRARY_DIRS}
-)
-if(NOT CAIRO_LIBRARY AND CAIRO_STATIC_LIBRARIES)
-    set(CAIRO_LIBRARY ${CAIRO_STATIC_LIBRARIES})
-    set(CAIRO_C_FLAGS "-DCAIRO_WIN32_STATIC_BUILD")
+if(PKG_CONFIG_FOUND)
+  pkg_search_module(Cairo_PKG cairo)
 endif()
 
-IF (CAIRO_INCLUDE_DIR)
-    IF (EXISTS "${CAIRO_INCLUDE_DIR}/cairo-version.h")
-        FILE(READ "${CAIRO_INCLUDE_DIR}/cairo-version.h" CAIRO_VERSION_CONTENT)
+find_library(Cairo_LIBRARY cairo HINTS ${Cairo_PKG_LIBRARY_DIRS})
+set(Cairo cairo)
 
-        STRING(REGEX MATCH "#define +CAIRO_VERSION_MAJOR +([0-9]+)" _dummy "${CAIRO_VERSION_CONTENT}")
-        SET(CAIRO_VERSION_MAJOR "${CMAKE_MATCH_1}")
+if(Cairo_LIBRARY)
+  add_library(${Cairo} SHARED IMPORTED)
+  set_property(TARGET ${Cairo} PROPERTY IMPORTED_LOCATION "${Cairo_LIBRARY}")
+  set_property(TARGET ${Cairo} PROPERTY INTERFACE_COMPILE_OPTIONS "${Cairo_PKG_CFLAGS_OTHER}")
 
-        STRING(REGEX MATCH "#define +CAIRO_VERSION_MINOR +([0-9]+)" _dummy "${CAIRO_VERSION_CONTENT}")
-        SET(CAIRO_VERSION_MINOR "${CMAKE_MATCH_1}")
+  set(Cairo_INCLUDE_DIRS)
 
-        STRING(REGEX MATCH "#define +CAIRO_VERSION_MICRO +([0-9]+)" _dummy "${CAIRO_VERSION_CONTENT}")
-        SET(CAIRO_VERSION_MICRO "${CMAKE_MATCH_1}")
+  find_path(Cairo_INCLUDE_DIR "cairo.h"
+    HINTS ${Cairo_PKG_INCLUDE_DIRS})
 
-        SET(CAIRO_VERSION "${CAIRO_VERSION_MAJOR}.${CAIRO_VERSION_MINOR}.${CAIRO_VERSION_MICRO}")
-    ENDIF ()
-ENDIF ()
+  if(Cairo_INCLUDE_DIR)
+    file(STRINGS "${Cairo_INCLUDE_DIR}/cairo-version.h" Cairo_VERSION_MAJOR REGEX "^#define CAIRO_VERSION_MAJOR +\\(?([0-9]+)\\)?$")
+    string(REGEX REPLACE "^#define CAIRO_VERSION_MAJOR \\(?([0-9]+)\\)?$" "\\1" Cairo_VERSION_MAJOR "${Cairo_VERSION_MAJOR}")
+    file(STRINGS "${Cairo_INCLUDE_DIR}/cairo-version.h" Cairo_VERSION_MINOR REGEX "^#define CAIRO_VERSION_MINOR +\\(?([0-9]+)\\)?$")
+    string(REGEX REPLACE "^#define CAIRO_VERSION_MINOR \\(?([0-9]+)\\)?$" "\\1" Cairo_VERSION_MINOR "${Cairo_VERSION_MINOR}")
+    file(STRINGS "${Cairo_INCLUDE_DIR}/cairo-version.h" Cairo_VERSION_MICRO REGEX "^#define CAIRO_VERSION_MICRO +\\(?([0-9]+)\\)?$")
+    string(REGEX REPLACE "^#define CAIRO_VERSION_MICRO \\(?([0-9]+)\\)?$" "\\1" Cairo_VERSION_MICRO "${Cairo_VERSION_MICRO}")
+    set(Cairo_VERSION "${Cairo_VERSION_MAJOR}.${Cairo_VERSION_MINOR}.${Cairo_VERSION_MICRO}")
+    unset(Cairo_VERSION_MAJOR)
+    unset(Cairo_VERSION_MINOR)
+    unset(Cairo_VERSION_MICRO)
 
-INCLUDE(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(Cairo DEFAULT_MSG CAIRO_INCLUDE_DIR CAIRO_LIBRARY)
-set(CAIRO_INCLUDE_DIRS ${CAIRO_INCLUDE_DIR})
-set(CAIRO_LIBRARIES ${CAIRO_LIBRARY})
+    list(APPEND Cairo_INCLUDE_DIRS ${Cairo_INCLUDE_DIR})
+    set_property(TARGET ${Cairo} PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${Cairo_INCLUDE_DIR}")
+  endif()
+endif()
+
+set(Cairo_DEPS_FOUND_VARS)
+foreach(cairo_dep ${Cairo_DEPS})
+  find_package(${cairo_dep})
+
+  list(APPEND Cairo_DEPS_FOUND_VARS "${cairo_dep}_FOUND")
+  list(APPEND Cairo_INCLUDE_DIRS ${${cairo_dep}_INCLUDE_DIRS})
+
+  set_property (TARGET ${Cairo} APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${${cairo_dep}}")
+endforeach(cairo_dep)
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(Cairo
+    REQUIRED_VARS
+      Cairo_LIBRARY
+      Cairo_INCLUDE_DIRS
+      ${Cairo_DEPS_FOUND_VARS}
+    VERSION_VAR
+      Cairo_VERSION)
+
+unset(Cairo_DEPS_FOUND_VARS)
