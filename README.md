@@ -24,7 +24,20 @@ This plugin displays text from a file with many advanced features.
 See [the Pango Markup Language](https://developer.gnome.org/pygtk/stable/pango-markup-language.html)
 for detailed markup tags available.
 
-### Updating text file
+### Updating text
+
+This plugin can set the text by setting or from a text file.
+To have transition, the text should be updated from a progam, not by typing on the setting window.
+
+#### Updating text using obs-websocket
+
+You can use `SetSourceSettings` request for [obs-websocket](https://github.com/Palakis/obs-websocket/).
+Request fields will be as below for example.
+```
+{"sourceName": "source-name", "sourceSettings": {"text": "your new text"}}
+```
+
+#### Updating text file
 
 This plugin checks these file attributes; inode, mtime, and size.
 Recommended flow to update the text is as below.

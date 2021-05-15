@@ -12,6 +12,9 @@ trigger:
   tags:
     include:
       - '*'
+  paths:
+    exclude:
+      - '**.md'
 
 jobs:
 - job: 'Build_Windows'
