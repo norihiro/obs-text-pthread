@@ -18,6 +18,7 @@ This plugin displays text from a file with many advanced features.
   * Lower priority to draw glyphs so that other sources and encoders are not impacted
   * More frequent polling of the text file
 * Automatic line-break supporting East Asian languages
+* Saving as PNG files for post production
 
 ### Markups
 
