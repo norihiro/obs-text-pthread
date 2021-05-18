@@ -11,7 +11,9 @@ sudo apt-get install -y \
 	checkinstall \
 	cmake \
 	obs-studio \
-	qtbase5-dev
+	qtbase5-dev \
+	libpango1.0-dev \
+	libpng-dev
 
 # Dirty hack
 sudo wget -O /usr/include/obs/obs-frontend-api.h https://raw.githubusercontent.com/obsproject/obs-studio/25.0.0/UI/obs-frontend-api/obs-frontend-api.h
