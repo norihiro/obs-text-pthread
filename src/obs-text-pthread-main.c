@@ -232,7 +232,7 @@ static obs_properties_t *tp_get_properties(void *unused)
 
 	obs_properties_add_font(props, "font", obs_module_text("Font"));
 
-	obs_properties_add_text(props, "text", obs_module_text("Text file"), OBS_TEXT_MULTILINE);
+	obs_properties_add_text(props, "text", obs_module_text("Text"), OBS_TEXT_MULTILINE);
 	obs_properties_add_bool(props, "from_file", obs_module_text("Read text from a file"));
 	obs_properties_add_path(props, "text_file", obs_module_text("Text file"), OBS_PATH_FILE, NULL, NULL);
 	obs_properties_add_bool(props, "markup", obs_module_text("Pango mark-up"));
