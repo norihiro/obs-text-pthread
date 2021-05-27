@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This plugin displays text from a file with many advanced features.
+This plugin displays text with many advanced features.
 
 * Markup
 * Text alignment
@@ -25,10 +25,14 @@ This plugin displays text from a file with many advanced features.
 See [the Pango Markup Language](https://developer.gnome.org/pygtk/stable/pango-markup-language.html)
 for detailed markup tags available.
 
+### Properties
+
+[List of properties](doc/properties.md) describes all available propeties.
+
 ### Updating text
 
 This plugin can set the text by setting or from a text file.
-To have transition, the text should be updated from a progam, not by typing on the setting window.
+To have transition, it is recommended that the text is updated from a progam, not by typing on the propeties window.
 
 #### Updating text using obs-websocket
 
