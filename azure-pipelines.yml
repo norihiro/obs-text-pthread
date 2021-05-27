@@ -2,7 +2,7 @@ variables:
   macosSignAndNotarize: false
   isReleaseMode: ${{ and(eq(variables['isReleaseMode'], true), startsWith(variables['Build.SourceBranch'], 'refs/tags/')) }}
   buildWin32: false
-  buildWin64: false
+  buildWin64: true
   buildLinux: true
 
 trigger:
@@ -28,6 +28,7 @@ jobs:
     QtBaseDir: 'D:\QtDep'
     QTDIR32: '$(QtBaseDir)\5.10.1\msvc2017'
     QTDIR64: '$(QtBaseDir)\5.10.1\msvc2017_64'
+    PangoDir: 'D:\pango'
     OBSPath: 'D:\obs-studio'
   condition: or(eq(variables['buildWin32'], true), eq(variables['buildWin64'], true))
   steps:
@@ -57,6 +58,18 @@ jobs:
         restoreKeys: |
           obs | "$(Agent.OS)"
         path: $(OBSPath)
+
+    - script: ./ci/windows/download-pango.cmd
+      displayName: 'Download pango build script'
+      env:
+        DepsPath32: $(DepsPath32)
+        DepsPath64: $(DepsPath64)
+        PangoDir: $(PangoDir)
+
+    - task: ShellScript@2
+      inputs:
+        scriptPath: ./ci/windows/setup-pango.sh
+        cwd: $(PangoDir)
 
     - script: ./ci/windows/prepare-obs-windows.cmd
       displayName: 'Checkout & CMake OBS Studio'
