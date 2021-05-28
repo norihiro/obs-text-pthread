@@ -13,11 +13,6 @@ curl http://repo.msys2.org/msys/x86_64/libpcre2_8-10.36-1-x86_64.pkg.tar.zst | t
 curl http://repo.msys2.org/msys/x86_64/libmetalink-0.1.3-3-x86_64.pkg.tar.zst | tar Cvxf / - --zstd
 curl http://repo.msys2.org/msys/x86_64/libgpgme-1.15.1-2-x86_64.pkg.tar.zst | tar Cvxf / - --zstd
 
-
-mkdir ninja
-curl -LO https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip && unzip ninja-win.zip -d ninja
-PATH="$PWD/ninja:$PATH"
-
 # -G 'Ninja'
 # -G "Visual Studio 16 2019"
 sed -i \
