@@ -67,6 +67,7 @@ jobs:
         PangoDir: $(PangoDir)
 
     - task: ShellScript@2
+      displayName: 'Setup pango'
       inputs:
         scriptPath: ./ci/windows/setup-pango.sh
         cwd: $(PangoDir)
