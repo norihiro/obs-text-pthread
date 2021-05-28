@@ -12,6 +12,7 @@ curl http://repo.msys2.org/msys/x86_64/wget-1.21.1-2-x86_64.pkg.tar.zst | tar Cv
 curl http://repo.msys2.org/msys/x86_64/libpcre2_8-10.36-1-x86_64.pkg.tar.zst | tar Cvxf / - --zstd
 curl http://repo.msys2.org/msys/x86_64/libmetalink-0.1.3-3-x86_64.pkg.tar.zst | tar Cvxf / - --zstd
 curl http://repo.msys2.org/msys/x86_64/libgpgme-1.15.1-2-x86_64.pkg.tar.zst | tar Cvxf / - --zstd
+curl http://repo.msys2.org/msys/x86_64/ed-1.17-1-x86_64.pkg.tar.zst | tar Cvxf / - --zstd
 
 # -G 'Ninja'
 # -G "Visual Studio 16 2019"
