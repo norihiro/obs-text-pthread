@@ -12,6 +12,11 @@ curl http://repo.msys2.org/msys/x86_64/wget-1.21.1-2-x86_64.pkg.tar.zst | tar Cv
 curl http://repo.msys2.org/msys/x86_64/libpcre2_8-10.36-1-x86_64.pkg.tar.zst | tar Cvxf / - --zstd
 curl http://repo.msys2.org/msys/x86_64/libmetalink-0.1.3-3-x86_64.pkg.tar.zst | tar Cvxf / - --zstd
 curl http://repo.msys2.org/msys/x86_64/libgpgme-1.15.1-2-x86_64.pkg.tar.zst | tar Cvxf / - --zstd
+
+curl -LO https://github.com/mesonbuild/meson/releases/download/0.55.0/meson-0.55.0-64.msi -f --retry 5
+msiexec /i meson-*.msi /passive /qn /lv meson-install.log
+cat meson-install.log
+
 mkdir ninja
 curl -LO https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip && unzip ninja-win.zip -d ninja
 PATH="$PWD/ninja:$PATH"
