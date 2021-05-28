@@ -19,4 +19,11 @@ sed -i \
 	-e "s;-G 'Ninja';-G 'Visual Studio 16 2019';g" \
 	-e 's/ninja install$/cmake --build . --config Release ; cmake --install . --config Release/g' \
 	./prepare.sh
+ed ./prepare.sh <<-EOF
+/^meson
+a
+meson configure -Ddefault_library=static
+.
+wq
+EOF
 . ./prepare.sh
