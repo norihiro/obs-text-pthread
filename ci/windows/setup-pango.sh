@@ -17,6 +17,6 @@ curl http://repo.msys2.org/msys/x86_64/libgpgme-1.15.1-2-x86_64.pkg.tar.zst | ta
 # -G "Visual Studio 16 2019"
 sed -i \
 	-e "s;-G 'Ninja';-G 'Visual Studio 16 2019';g" \
-	-e 's/ninja install$/cmake --config Release --build . ; cmake --config Release --install ./g' \
+	-e 's/ninja install$/cmake --build . --config Release ; cmake --install . --config Release/g' \
 	./prepare.sh
 . ./prepare.sh
