@@ -7,4 +7,6 @@ curl http://repo.msys2.org/msys/x86_64/openbsd-netcat-1.206_1-1-x86_64.pkg.tar.x
 curl http://repo.msys2.org/msys/x86_64/libzstd-1.4.5-2-x86_64.pkg.tar.xz | tar CxvJf / -
 curl http://repo.msys2.org/msys/x86_64/libxxhash-0.8.0-1-x86_64.pkg.tar.zst | tar Cvxf / - --zstd
 
+mingw-get install msys-wget
+
 . ./prepare.sh
