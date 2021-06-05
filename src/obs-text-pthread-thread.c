@@ -149,7 +149,6 @@ static inline void copy_rgba2a(uint8_t *d, const uint8_t *s, const int stride, c
 
 static inline uint32_t blend_rgba_ch(uint32_t c1, uint32_t c2, uint32_t a1, uint32_t a2, uint32_t a_255)
 {
-	if (a_255==0) return 0; // completely transparent
 	uint32_t c21 = ((255 - a2) * a1 * c1 + 255 * a2 * c2) / a_255;
 	if (c21>255) c21 = 255;
 	return c21;
@@ -159,6 +158,7 @@ static inline uint32_t blend_rgba_ch(uint32_t c1, uint32_t c2, uint32_t a1, uint
 static inline uint32_t blend_rgba(uint32_t c2, uint32_t c1)
 {
 	uint32_t a_255 = 255*255 - (255-(c1>>24)) * (255-(c2>>24));
+	if (a_255<255) return 0; // completely transparent
 	uint32_t a = a_255/255;
 	return (a << 24) |
 		(blend_rgba_ch((c1>>16)&0xFF, (c2>>16)&0xFF, c1>>24, c2>>24, a_255) << 16) |
@@ -168,12 +168,13 @@ static inline uint32_t blend_rgba(uint32_t c2, uint32_t c1)
 
 static inline uint32_t blend_text_ch(uint32_t xt, uint32_t xb, uint32_t at, uint32_t ab, uint32_t u, uint32_t a_255)
 {
-	return a_255 ? ((255-u) * ab * xb + u * at * xt) / a_255 : 0;
+	return ((255-u) * ab * xb + u * at * xt) / a_255;
 }
 
 static inline uint32_t blend_text(uint32_t ct, uint32_t cb, uint32_t u)
 {
 	uint32_t a_255 = u * (ct>>24) + (255-u) * (cb>>24);
+	if (a_255<255) return 0; // completely transparent
 	return ((a_255/255) << 24) |
 		(blend_text_ch((ct>>16)&0xFF, (cb>>16)&0xFF, ct>>24, cb>>24, u, a_255) << 16) |
 		(blend_text_ch((ct>> 8)&0xFF, (cb>> 8)&0xFF, ct>>24, cb>>24, u, a_255) <<  8) |
