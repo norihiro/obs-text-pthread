@@ -59,7 +59,7 @@ static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_con
 	int b_start = b_end + (2*blur) / bs * bs;
 	for (int b=b_start; b>=b_end; b-=bs) {
 		double a = u32toFA(color) * (blur ? 0.5 - b * 0.5 / blur : 1.0);
-		if (a < 1e-2) continue;
+		if (a < 1e-2 && blur) continue;
 		int w = (width+b)*2;
 		if (w<0) break;
 		cairo_move_to(cr, offset_x, offset_y);
@@ -139,70 +139,32 @@ static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_con
 	}
 }
 
-static inline void copy_rgba2a(uint8_t *d, const uint8_t *s, const int stride, const uint32_t w, const uint32_t h)
+static inline uint32_t blend_text_ch(uint32_t xat, uint32_t xb, uint32_t at, uint32_t ab, uint32_t u)
 {
-	uint32_t size = h * stride;
-	for(int i=0, k=0; i<size; i+=4) {
-		d[k++] = s[i+3];
-	}
+	// u: factor for the bottom color
+	return xat + xb * ab * u * (255-at) / (255*255*255);
 }
 
-static inline uint32_t blend_rgba_ch(uint32_t c1, uint32_t c2, uint32_t a1, uint32_t a2, uint32_t a_255)
+static inline uint32_t blend_text(uint32_t cat, uint32_t cb, uint32_t u)
 {
-	uint32_t c21 = ((255 - a2) * a1 * c1 + 255 * a2 * c2) / a_255;
-	if (c21>255) c21 = 255;
-	return c21;
-}
-
-// blend RGBA colors, c1 is lower layer and c2 is front layer.
-static inline uint32_t blend_rgba(uint32_t c2, uint32_t c1)
-{
-	uint32_t a_255 = 255*255 - (255-(c1>>24)) * (255-(c2>>24));
-	if (a_255<255) return 0; // completely transparent
-	uint32_t a = a_255/255;
-	return (a << 24) |
-		(blend_rgba_ch((c1>>16)&0xFF, (c2>>16)&0xFF, c1>>24, c2>>24, a_255) << 16) |
-		(blend_rgba_ch((c1>> 8)&0xFF, (c2>> 8)&0xFF, c1>>24, c2>>24, a_255) <<  8) |
-		(blend_rgba_ch((c1    )&0xFF, (c2    )&0xFF, c1>>24, c2>>24, a_255)      );
-}
-
-static inline uint32_t blend_text_ch(uint32_t xt, uint32_t xb, uint32_t at, uint32_t ab, uint32_t u, uint32_t a_255)
-{
-	return ((255-u) * ab * xb + u * at * xt) / a_255;
-}
-
-static inline uint32_t blend_text(uint32_t ct, uint32_t cb, uint32_t u)
-{
-	uint32_t a_255 = u * (ct>>24) + (255-u) * (cb>>24);
+	uint32_t a_255 = (cat>>24) * 255 + u * (cb>>24) - (cat>>24) * u * (cb>>24) / 255;
 	if (a_255<255) return 0; // completely transparent
 	return ((a_255/255) << 24) |
-		(blend_text_ch((ct>>16)&0xFF, (cb>>16)&0xFF, ct>>24, cb>>24, u, a_255) << 16) |
-		(blend_text_ch((ct>> 8)&0xFF, (cb>> 8)&0xFF, ct>>24, cb>>24, u, a_255) <<  8) |
-		(blend_text_ch((ct    )&0xFF, (cb    )&0xFF, ct>>24, cb>>24, u, a_255)      );
+		(blend_text_ch((cat>>16)&0xFF, (cb>>16)&0xFF, cat>>24, cb>>24, u) << 16) |
+		(blend_text_ch((cat>> 8)&0xFF, (cb>> 8)&0xFF, cat>>24, cb>>24, u) <<  8) |
+		(blend_text_ch((cat    )&0xFF, (cb    )&0xFF, cat>>24, cb>>24, u)      );
 }
 
-static inline void blend_outline_shadow(uint8_t *s, const int stride, const uint32_t w, const uint32_t h, const uint8_t *so, const uint8_t *ss, const struct tp_config *config)
+static inline void blend_shadow(uint8_t *s, const int stride, const uint32_t h, const uint8_t *ss, uint32_t cs)
 {
 	uint32_t size = h * stride;
-	uint32_t ct_a = config->color & 0xFF000000;
-	for(int i=0, k=0; i<size; i+=4, k+=1) {
-		uint32_t cs = ss ? ss[k]<<24 | (config->shadow_color  & 0xFFFFFF) : 0;
-		uint32_t co = so ? so[k]<<24 | (config->outline_color & 0xFFFFFF) : 0;
+	for(int i=0, k=0; i<size; i+=4, k+=1) if (ss[k]) {
 		uint32_t ct = s ? s[i]<<16 | s[i+1]<<8 | s[i+2] | s[i+3]<<24 : 0;
-		uint32_t c = blend_text((ct & 0x00FFFFFF) | ct_a, ss ? so ? blend_rgba(co, cs) : cs : co, ct>>24);
+		uint32_t c = blend_text(ct, cs, ss[k]);
 		s[i  ] = c>>16;
 		s[i+1] = c>>8;
 		s[i+2] = c;
 		s[i+3] = c>>24;
-	}
-}
-
-static void debug_fill_rgb(uint8_t *data, uint32_t color, int size)
-{
-	for(int i=0; i<size; i+=4) {
-		data[i+2] = color;
-		data[i+1] = color>>8;
-		data[i+0] = color>>16;
 	}
 }
 
@@ -226,9 +188,6 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 
 	int stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, surface_width);
 	n->surface = bzalloc(stride * surface_height);
-
-	uint8_t *surface_outline = NULL;
-	uint8_t *surface_shadow = NULL;
 
 	cairo_surface_t *surface = cairo_image_surface_create_for_data(n->surface, CAIRO_FORMAT_ARGB32, surface_width, surface_height, stride);
 
@@ -267,36 +226,55 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	uint32_t surface_ink_height = PANGO_PIXELS_FLOOR(ink_rect.height) + PANGO_PIXELS_FLOOR(ink_rect.y) + outline_width_blur*2 + shadow_abs_y;
 	uint32_t surface_ink_height1 = surface_height > surface_ink_height ? surface_ink_height : surface_height;
 
-	if (shadow_abs_x || shadow_abs_y) {
-		cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-		if(outline_width_blur)
-			tp_stroke_path(cr, layout, config, offset_x + config->shadow_x, offset_y + config->shadow_y, config->shadow_color, outline_width, outline_blur);
-		tp_stroke_path(cr, layout, config, offset_x + config->shadow_x, offset_y + config->shadow_y, config->shadow_color, 0, 0);
-
-		surface_shadow = bzalloc(stride * surface_height);
-		copy_rgba2a(surface_shadow, n->surface, stride, surface_width, surface_ink_height1);
-		memset(n->surface, 0, stride * surface_height);
-	}
-
 	if (outline_width_blur > 0) {
 		debug("stroking outline width=%d\n", outline_width);
 		cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
 		tp_stroke_path(cr, layout, config, offset_x, offset_y, config->outline_color, outline_width, outline_blur);
 
-		surface_outline = bzalloc(stride * surface_height);
-		copy_rgba2a(surface_outline, n->surface, stride, surface_width, surface_ink_height1);
-		memset(n->surface, 0, stride * surface_height);
+		// overwrite outline color
+		uint32_t size = stride * surface_height;
+		uint8_t *ptr = n->surface;
+		uint8_t c[4] = {config->outline_color>>16, config->outline_color>>8, config->outline_color, 0};
+		for (uint32_t i=0; i<size; i+=4) {
+			int a = ptr[3];
+			for (int k=0; k<3; k++) {
+				int x = a * c[k] / 255;
+				if (x>255) x = 255;
+				ptr[k] = x;
+			}
+			ptr += 4;
+		}
 	}
 
-	// workaround to draw light transparent color on light surface, which became darker.
-	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-	debug_fill_rgb(n->surface, config->color, stride*surface_ink_height1);
-	uint32_t color_draw = config->color;
-	if (config->outline || config->shadow) color_draw |= 0xFF000000;
-	tp_stroke_path(cr, layout, config, offset_x, offset_y, color_draw, 0, 0);
+	cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
+	tp_stroke_path(cr, layout, config, offset_x, offset_y, config->color, 0, 0);
 
-	if (config->outline || config->shadow)
-		blend_outline_shadow(n->surface, stride, surface_width, surface_ink_height1, surface_outline, surface_shadow, config);
+	if (shadow_abs_x || shadow_abs_y) {
+		uint8_t *surface_shadow = bzalloc(stride * surface_height);
+		uint8_t *dst = surface_shadow;
+		uint8_t *src = n->surface;
+		if (config->shadow_x > 0)
+			dst += shadow_abs_x;
+		else
+			src += shadow_abs_x * 4;
+		if (config->shadow_y > 0)
+			dst += shadow_abs_y * stride / 4;
+		else
+			src += shadow_abs_y * stride;
+
+		for (int y=0; y<surface_ink_height1-shadow_abs_y; y++) {
+			uint8_t *d = dst; dst+=stride/4;
+			uint8_t *s = src+3; src+=stride;
+			for (int x=0; x<surface_width-shadow_abs_x; x++) {
+				*d = *s;
+				d += 1;
+				s += 4;
+			}
+		}
+
+		blend_shadow(n->surface, stride, surface_ink_height1, surface_shadow, config->shadow_color);
+		bfree(surface_shadow);
+	}
 
 	g_object_unref(layout);
 	cairo_destroy(cr);
@@ -326,11 +304,6 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	}
 
 	debug("tp_draw_texture end: width=%d height=%d \n",  n->width, n->height);
-
-	if (surface_shadow)
-		bfree(surface_shadow);
-	if (surface_outline)
-		bfree(surface_outline);
 
 	return n;
 }
