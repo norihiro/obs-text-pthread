@@ -362,7 +362,8 @@ static void tp_render(void *data, gs_effect_t *effect)
 		return;
 
 	obs_enter_graphics();
-	gs_reset_blend_state();
+	gs_blend_state_push();
+	gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 
 	const int w = tp_get_width(data);
 	const int h = tp_get_height(data);
@@ -403,6 +404,7 @@ static void tp_render(void *data, gs_effect_t *effect)
 			yoff += t->slide_h;
 		}
 	}
+	gs_blend_state_pop();
 	obs_leave_graphics();
 }
 
