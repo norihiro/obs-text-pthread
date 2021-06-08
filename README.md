@@ -10,6 +10,7 @@ This plugin displays text with many advanced features.
   * Justification
 * Outline
   * Configurable width, color, and opacity
+  * Configurable shape of corners
   * Blur
 * Transition
   * Fade-in, fade-out, cross-fade
