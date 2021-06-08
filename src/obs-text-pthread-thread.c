@@ -444,6 +444,14 @@ static void png_list_empty(uint64_t ns, FILE *fp_png_list)
 	uint64_t ms = ns / 1000000;
 	fprintf(fp_png_list, "%"PRIu64"\t-\n", ms);
 }
+
+static inline int cnvpm2npm(int c, int a)
+{
+	if (a==0 || a==255) return c;
+	c = c * 255 / a;
+	if (c>255) return 255;
+	return c;
+}
 #endif // PNG_FOUND
 
 static void *tp_thread_main(void *data)
@@ -549,7 +557,13 @@ static void *tp_thread_main(void *data)
 					png_width = tex->width;
 					png_height = tex->height;
 					png_surface = bzalloc(4*png_width*png_height);
-					memcpy(png_surface, tex->surface, 4*png_width*png_height);
+					if (png_surface) for (int i=0, size=png_width*png_height; i<size; i++) {
+						int a = tex->surface[i*4+3];
+						png_surface[i*4+0] = cnvpm2npm(tex->surface[i*4+2], a);
+						png_surface[i*4+1] = cnvpm2npm(tex->surface[i*4+1], a);
+						png_surface[i*4+2] = cnvpm2npm(tex->surface[i*4+0], a);
+						png_surface[i*4+3] = a;
+					}
 				}
 #endif // PNG_FOUND
 			}
