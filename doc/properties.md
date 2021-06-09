@@ -36,7 +36,7 @@ If _Pango mark-up_ is checked, the text has to have a correct mark-up syntax.
 ### Pango mark-up
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
-| Pango mark-up | `markup` | bool | false, true |
+| Pango mark-up | `markup` | bool | false, true | true |
 
 If checked, the text is parsed by pango as a mark-up language.
 See [the Pango Markup Language](https://developer.gnome.org/pygtk/stable/pango-markup-language.html)
@@ -47,11 +47,11 @@ for details.
 ### Color
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
-| Color | `color` | int | 0-4294967295 | 4294967295 (solid white) |
+| Color | `color` | int | 0-4294967295 | #FFFFFFFF (solid white) |
 
 This property selects the default color of the text.
 Still the mark-up can overwrite the color.
-Transparent color value is also accepted (but not available on GUI.).
+Transparent color value is also accepted.
 
 ### Width and Height
 | Name | Key | Type | Range | Default |
@@ -73,13 +73,14 @@ If checked, shrinks the canvas size to eliminate empty spaces.
 ### Alignment
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
-| Alignment | `align` | int | 0-6 | 0 |
+| Alignment | `align` | int | 0-6 | 0 (left) |
 
 This property specifies horizontal alignment and justification.
 Justification will happen if the text in a line is too long and need to wrap the text.
 From the API, available numbers are shown as below.
 
 | Value | Description |
+| ----- | ----------- |
 | 0 | Align to left |
 | 1 | Align to center |
 | 2 | Align to right |
@@ -99,9 +100,10 @@ for detailed description.
 ### Wrap text
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
-| Wrap text | `wrapmode` | int | | |
+| Wrap text | `wrapmode` | int | 0-2 | 0 (word) |
 
 | Value | Selection | Description |
+| ----- | --------- | ----------- |
 | 0 | Word | wrap lines at word boundaries. |
 | 1 | Char | wrap lines at character boundaries. |
 | 2 | WordChar | wrap lines at word boundaries, but fall back to character boundaries if there is not enough space for a full word.
@@ -203,19 +205,21 @@ Crossfade is applied if the text is set from non-blank to non-blank.
 ### Slide
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
-Slide \[px/s\] | `slide_pxps` | int | | 0 |
+Slide \[px/s\] | `slide_pxps` | int | 0 - 65500 | 0 |
 
 This parameter enables slide transition if set to non-zero value.
 When the text is updated, old text will slide upward and the new text will slide from the bottom.
 
 Set 0 to disable slide. Default is 0.
 
+Slide feature is under development. Behavior might change in the next release.
+
 ## Post-production Support Properties
 
 ### Save as PNG
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
-Save as PNG | `save_file` | bool | | |
+Save as PNG | `save_file` | bool | false, true | false |
 
 Each text will be saved as a PNG file if this property is checked.
 The PNG image has alpha channel so that you can import the file to your non-linear video editor and overlay on your video.
