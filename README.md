@@ -57,5 +57,4 @@ Recommended flow to update the text is as below.
 ### Furture plan
 
 * support Windows,
-* use inotify instead of polling the file,
 * and feature requests.
