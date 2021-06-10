@@ -36,7 +36,7 @@ If _Pango mark-up_ is checked, the text has to have a correct mark-up syntax.
 ### Pango mark-up
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
-| Pango mark-up | `markup` | bool | false, true |
+| Pango mark-up | `markup` | bool | false, true | true |
 
 If checked, the text is parsed by pango as a mark-up language.
 See [the Pango Markup Language](https://developer.gnome.org/pygtk/stable/pango-markup-language.html)
@@ -47,11 +47,11 @@ for details.
 ### Color
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
-| Color | `color` | int | 0-4294967295 | 4294967295 (solid white) |
+| Color | `color` | int | 0-4294967295 | #FFFFFFFF (solid white) |
 
 This property selects the default color of the text.
 Still the mark-up can overwrite the color.
-Transparent color value is also accepted (but not available on GUI.).
+Transparent color value is also accepted.
 
 ### Width and Height
 | Name | Key | Type | Range | Default |
@@ -73,13 +73,14 @@ If checked, shrinks the canvas size to eliminate empty spaces.
 ### Alignment
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
-| Alignment | `align` | int | 0-6 | 0 |
+| Alignment | `align` | int | 0-6 | 0 (left) |
 
 This property specifies horizontal alignment and justification.
 Justification will happen if the text in a line is too long and need to wrap the text.
 From the API, available numbers are shown as below.
 
 | Value | Description |
+| ----- | ----------- |
 | 0 | Align to left |
 | 1 | Align to center |
 | 2 | Align to right |
@@ -99,9 +100,10 @@ for detailed description.
 ### Wrap text
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
-| Wrap text | `wrapmode` | int | | |
+| Wrap text | `wrapmode` | int | 0-2 | 0 (word) |
 
 | Value | Selection | Description |
+| ----- | --------- | ----------- |
 | 0 | Word | wrap lines at word boundaries. |
 | 1 | Char | wrap lines at character boundaries. |
 | 2 | WordChar | wrap lines at word boundaries, but fall back to character boundaries if there is not enough space for a full word.
@@ -135,27 +137,47 @@ This parameter controls additional spacing between lines.
 
 ## Decoration Properties
 
+This plugin provides two decorations; outline and shadow.
+The outline makes the text thicker with different color.
+The shadow has the same figure as the text and the outline and stays underneath them and drawn by yet another color.
+
 ### Outline
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
 | Outline | `outline` | bool | false, true | false |
-| Outline color | `outline_color` | int | | |
-| Outline width | `outline_width` | int | | |
-| Outline blur | `outline_blur` | int | | |
-| Outline shape | `outline_shape` | int | | |
+| Outline color | `outline_color` | int | | `#FF000000` (black) |
+| Outline width | `outline_width` | int | 0 - 65536 | 0 |
+| Outline blur | `outline_blur` | int | 0 - 65536 | 0 |
+| Outline shape | `outline_shape` | int | | Round |
+
+The width specifies the width of outline in pixels.
+The blur will composite several outline that have different width from `width+blur` to `width-blur`.
+You should set non-zero value for at least width or blur.
+
+Outline shape takes one of these choice.
+- Round: (default)
+- Bevel: The outline becomes octagonal shape at the corner.
+- Rect: The outline becomes rectangle shape at the corner.
+- Sharp: The outline becomes pointed sharp at acute corner. The maximum length of the acute corner is limited to 4 since there is no limit if the corner is super acute. Usually it should not reach the limit.
+
+See also [examples](https://github.com/norihiro/obs-text-pthread/wiki/properties#outline-shape).
 
 ### Shadow
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
 | Shadow | `shadow` | bool | false, true | false |
-| Shadow color | `shadow_color` | int | | |
-| Shadow offset x | `shadow_x` | int | | |
-| Shadow offset y | `shadow_y` | int | | |
+| Shadow color | `shadow_color` | int | | `#FF000000` (black) |
+| Shadow offset x | `shadow_x` | int | -65536 - +65536 | 2 |
+| Shadow offset y | `shadow_y` | int | -65536 - +65536 | 3 |
 <!-- TODO: implement them
 | Shadow width | `shadow_width` | int | | |
 | Shadow blur | `shadow_blur` | int | | |
 | Shadow shape | `shadow_shape` | int | | |
 -->
+
+If enabled, a shadow is drawn underneath the text and the outline.
+The color of the shadow can be specified by `Shadow color` property.
+The location of the shadow is specified by x and y coordinate. Please note that nothing will be displayed if both x and y are zero.
 
 ## Transition Properties
 
@@ -183,19 +205,21 @@ Crossfade is applied if the text is set from non-blank to non-blank.
 ### Slide
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
-Slide \[px/s\] | `slide_pxps` | int | | 0 |
+Slide \[px/s\] | `slide_pxps` | int | 0 - 65500 | 0 |
 
 This parameter enables slide transition if set to non-zero value.
 When the text is updated, old text will slide upward and the new text will slide from the bottom.
 
 Set 0 to disable slide. Default is 0.
 
+Slide feature is under development. Behavior might change in the next release.
+
 ## Post-production Support Properties
 
 ### Save as PNG
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |
-Save as PNG | `save_file` | bool | | |
+Save as PNG | `save_file` | bool | false, true | false |
 
 Each text will be saved as a PNG file if this property is checked.
 The PNG image has alpha channel so that you can import the file to your non-linear video editor and overlay on your video.
