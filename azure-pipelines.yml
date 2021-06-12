@@ -9,9 +9,6 @@ trigger:
   branches:
     include:
       - master
-  tags:
-    include:
-      - '*'
   paths:
     exclude:
       - '**.md'
