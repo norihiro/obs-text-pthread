@@ -24,7 +24,7 @@ VertInOut VSDefault(VertInOut vert_in)
 float4 PSDrawAlpha(VertInOut vert_in) : TARGET
 {
 	float4 rgba = image.Sample(def_sampler, vert_in.uv);
-	return float4(rgba.rgb, rgba.a * alpha);
+	return rgba * alpha;
 }
 
 technique Draw
