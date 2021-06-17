@@ -82,6 +82,13 @@ static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_con
 			}
 			if (!path_preserved)
 				pango_cairo_layout_path(cr, layout);
+			if (!path_preserved) { // workaround
+				cairo_path_t *path;
+				path = cairo_copy_path_flat(cr);
+				cairo_new_path(cr);
+				cairo_append_path(cr, path);
+				cairo_path_destroy(path);
+			}
 			cairo_stroke_preserve(cr);
 			path_preserved = true;
 		}
