@@ -68,6 +68,8 @@ jobs:
         QTDIR32: $(QTDIR32)
         QTDIR64: $(QTDIR64)
         OBSPath: $(OBSPath)
+        buildWin32: $(buildWin32)
+        buildWin64: $(buildWin64)
 
     - task: MSBuild@1
       displayName: 'Build OBS Studio 32-bit'

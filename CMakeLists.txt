@@ -10,7 +10,6 @@ set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 # TAKE NOTE: No need to edit things past this point
 
 set(CMAKE_PREFIX_PATH "${QTDIR}")
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # In case you need C++
 set(CMAKE_CXX_STANDARD 11)
@@ -210,13 +209,11 @@ if(UNIX AND NOT APPLE)
 	set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES PREFIX "")
 	target_link_libraries(${CMAKE_PROJECT_NAME} obs-frontend-api)
 
-	file(GLOB data_files data/locale/*.ini data/*.effect)
-
 	install(TARGETS ${CMAKE_PROJECT_NAME}
 		LIBRARY DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/obs-plugins")
 
-	install(FILES ${data_files}
-		DESTINATION "${CMAKE_INSTALL_FULL_DATAROOTDIR}/obs/obs-plugins/${CMAKE_PROJECT_NAME}/")
+	install(DIRECTORY data/
+		DESTINATION "${CMAKE_INSTALL_FULL_DATAROOTDIR}/obs/obs-plugins/${CMAKE_PROJECT_NAME}")
 endif()
 # --- End of section ---
 

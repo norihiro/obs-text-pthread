@@ -20,13 +20,13 @@ FILENAME_UNSIGNED="$PLUGIN_NAME-${GIT_TAG}-Unsigned.pkg"
 FILENAME="$PLUGIN_NAME-${GIT_TAG}.pkg"
 
 echo "=> Modifying $PLUGIN_NAME.so"
-mkdir lib
+mkdir -p lib
 
 function copy_local_dylib
 {
 	local dylib
 	otool -L $1 | awk '/^	\/usr\/local\/(opt|Cellar)\/.*\.dylib/{print $1}' |
-	while read dylib; do
+	while read -r dylib; do
 		echo "Changing dependency $1 -> $dylib"
 		local b=$(basename $dylib)
 		if test ! -e lib/$b; then
@@ -52,10 +52,10 @@ copy_local_dylib ./build/${PLUGIN_NAME}.so
 
 # Check if replacement worked
 for dylib in ./build/$PLUGIN_NAME.so lib/*.dylib ; do
+	test -f "$dylib" || continue
+	chmod +r $dylib
 	echo "=> Dependencies for $(basename $dylib)"
 	otool -L $dylib
-	echo "=> Search paths written in $(basename $dylib)"
-	otool -l $dylib
 	echo
 done
 
@@ -69,12 +69,13 @@ fi
 echo "=> ZIP package build"
 ziproot=package-zip/$PLUGIN_NAME
 zipfile=${PLUGIN_NAME}-${GIT_TAG}-macos.zip
+rm -rf ${ziproot:?}/
 mkdir -p $ziproot/bin
 cp ./build/$PLUGIN_NAME.so $ziproot/bin/
+cp LICENSE data/LICENSE-$PLUGIN_NAME
 cp -a data $ziproot/
 mkdir -p ./release
-chmod +rx lib/*.dylib
-mv lib $ziproot/
+rmdir lib || mv lib $ziproot/
 (cd package-zip && zip -r ../release/$zipfile $PLUGIN_NAME)
 
 echo "=> DMG package build"
