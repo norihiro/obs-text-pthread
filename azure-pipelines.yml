@@ -1,9 +1,15 @@
 variables:
-  isReleaseMode: true
-  buildWin32: false
-  buildWin64: false
-  buildLinux: true
-  OBSLatestTag: 26.1.2
+  - group: variables-macOS
+  - name: isReleaseMode
+    value: true
+  - name: buildWin32
+    value: false
+  - name: buildWin64
+    value: false
+  - name: buildLinux
+    value: true
+  - name: OBSLatestTag
+    value: 26.1.2
 
 trigger:
   branches:
