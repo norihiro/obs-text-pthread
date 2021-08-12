@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.10)
 
 project(obs-text-pthread)
 set(CMAKE_PROJECT_VERSION 1.0.1) # TODO: update cmake to 3.12 or later and put to 'project'
