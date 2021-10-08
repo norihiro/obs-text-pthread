@@ -348,8 +348,6 @@ static void tp_surface_to_texture(struct tp_texture *t)
 {
 	if(t->surface && !t->tex) {
 		const uint8_t *surface = t->surface;
-
-		if (t->tex) gs_texture_destroy(t->tex);
 		t->tex = gs_texture_create(t->width, t->height, GS_BGRA, 1, &surface, 0);
 	}
 }
