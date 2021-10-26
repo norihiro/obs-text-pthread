@@ -606,6 +606,7 @@ static struct obs_source_info tp_src_info = {
 	.get_height = tp_get_height,
 	.video_render = tp_render,
 	.video_tick = tp_tick,
+	.icon_type = OBS_ICON_TYPE_TEXT,
 };
 
 bool obs_module_load(void)
