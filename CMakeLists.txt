@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 project(obs-text-pthread)
-set(CMAKE_PROJECT_VERSION 1.0.2) # TODO: update cmake to 3.12 or later and put to 'project'
+set(CMAKE_PROJECT_VERSION 1.0.3) # TODO: update cmake to 3.12 or later and put to 'project'
 
 set(PLUGIN_AUTHOR "Norihiro Kamae")
 set(MACOS_BUNDLEID "net.nagater.obs-text-pthread")
