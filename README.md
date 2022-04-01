@@ -23,7 +23,7 @@ This plugin displays text with many advanced features.
 
 ### Markups
 
-See [the Pango Markup Language](https://developer.gnome.org/pygtk/stable/pango-markup-language.html)
+See [the Pango Markup Language](https://docs.gtk.org/Pango/pango_markup.html)
 for detailed markup tags available.
 
 ### Properties
