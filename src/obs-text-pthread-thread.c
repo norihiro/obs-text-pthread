@@ -50,9 +50,64 @@ static inline int blur_step(int blur)
 	return (blur/8) | 1;
 }
 
+static double curve_area(
+		double x0, double y0,
+		double x1, double y1,
+		double x2, double y2,
+		double x3, double y3 )
+{
+	double ii;
+	ii  = 0.05 * y3 * x0;
+	ii -= 0.05 * y0 * x3;
+	ii -= 0.15 * y1 * x2;
+	ii -= 0.15 * y1 * x3;
+	ii -= 0.15 * y0 * x2;
+	ii += 0.15 * y2 * x0;
+	ii += 0.15 * y2 * x1;
+	ii += 0.15 * y3 * x1;
+	ii += 0.3  * y1 * x0;
+	ii -= 0.3  * y0 * x1;
+	ii -= 0.3  * y2 * x3;
+	ii += 0.3  * y3 * x2;
+	return ii;
+}
+
+static void draw_path_internal(cairo_t *cr, cairo_path_t *path, int ix_start)
+{
+	for (int i=ix_start; i < path->num_data; i+=path->data[i].header.length) {
+		cairo_path_data_t *data = &path->data[i];
+		switch(data->header.type) {
+			case CAIRO_PATH_MOVE_TO:
+				cairo_move_to(cr, data[1].point.x, data[1].point.y);
+				break;
+			case CAIRO_PATH_LINE_TO:
+				cairo_line_to(cr, data[1].point.x, data[1].point.y);
+				break;
+			case CAIRO_PATH_CURVE_TO:
+				cairo_curve_to(cr,
+						data[1].point.x, data[1].point.y,
+						data[2].point.x, data[2].point.y,
+						data[3].point.x, data[3].point.y );
+				break;
+			case CAIRO_PATH_CLOSE_PATH:
+				cairo_close_path(cr);
+				return;
+		}
+	}
+}
+
+static void tp_stroke_setup(cairo_t *cr, int offset_x, int offset_y, uint32_t color)
+{
+	cairo_move_to(cr, offset_x, offset_y);
+	cairo_set_source_rgba(cr, u32toFR(color), u32toFG(color), u32toFB(color), u32toFA(color));
+}
+
 static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_config *config, int offset_x, int offset_y, uint32_t color, int width, int blur)
 {
-	bool path_preserved = false;
+	cairo_move_to(cr, offset_x, offset_y);
+	pango_cairo_layout_path(cr, layout);
+	cairo_path_t *path = cairo_copy_path(cr);
+
 	const int bs = blur_step(blur);
 	int b_end = -blur;
 	if (blur && b_end+width<=0) b_end = -width+1;
@@ -61,34 +116,80 @@ static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_con
 		double a = u32toFA(color) * (blur ? 0.5 - b * 0.5 / blur : 1.0);
 		if (a < 1e-2 && blur) continue;
 		int w = (width+b)*2;
-		if (w<0) break;
-		cairo_move_to(cr, offset_x, offset_y);
+		if (w<=0) break;
 		cairo_set_source_rgba(cr, u32toFR(color), u32toFG(color), u32toFB(color), a);
-		if(w>0) {
-			cairo_set_line_width(cr, w);
-			if (config->outline_shape & OUTLINE_BEVEL) {
-				cairo_set_line_join(cr, CAIRO_LINE_JOIN_BEVEL);
-			}
-			else if(config->outline_shape & OUTLINE_RECT) {
-				cairo_set_line_join(cr, CAIRO_LINE_JOIN_MITER);
-				cairo_set_miter_limit(cr, 1.999);
-			}
-			else if(config->outline_shape & OUTLINE_SHARP) {
-				cairo_set_line_join(cr, CAIRO_LINE_JOIN_MITER);
-				cairo_set_miter_limit(cr, 3.999);
-			}
-			else {
-				cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
-			}
-			if (!path_preserved)
-				pango_cairo_layout_path(cr, layout);
-			cairo_stroke_preserve(cr);
-			path_preserved = true;
+
+		cairo_set_line_width(cr, w);
+		if (config->outline_shape & OUTLINE_BEVEL) {
+			cairo_set_line_join(cr, CAIRO_LINE_JOIN_BEVEL);
+		}
+		else if(config->outline_shape & OUTLINE_RECT) {
+			cairo_set_line_join(cr, CAIRO_LINE_JOIN_MITER);
+			cairo_set_miter_limit(cr, 1.999);
+		}
+		else if(config->outline_shape & OUTLINE_SHARP) {
+			cairo_set_line_join(cr, CAIRO_LINE_JOIN_MITER);
+			cairo_set_miter_limit(cr, 3.999);
 		}
 		else {
-			pango_cairo_show_layout(cr, layout);
+			cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
 		}
+
+		double x=0, y=0, x0=0, y0=0;
+		double area = 0;
+		double area_th;
+		cairo_new_path(cr);
+		for (int i=0, i0=0; i < path->num_data; i+=path->data[i].header.length) {
+			cairo_path_data_t *data = &path->data[i];
+			switch(data->header.type) {
+				case CAIRO_PATH_MOVE_TO:
+					blog(LOG_INFO, "CAIRO_PATH_MOVE_TO %f %f",
+							data[1].point.x, data[1].point.y);
+					x = x0 = data[1].point.x;
+					y = y0 = data[1].point.y;
+					area = 0;
+					i0 = i;
+					break;
+				case CAIRO_PATH_LINE_TO:
+					blog(LOG_INFO, "CAIRO_PATH_LINE_TO %f %f a=%f area=%f",
+							data[1].point.x, data[1].point.y,
+							0.5 * (x * data[1].point.y - y * data[1].point.x), area );
+					area += 0.5 * (x * data[1].point.y - y * data[1].point.x);
+					x = data[1].point.x;
+					y = data[1].point.y;
+					break;
+				case CAIRO_PATH_CURVE_TO:
+					blog(LOG_INFO, "CAIRO_PATH_CURVE_TO %f %f %f %f %f %f",
+							data[1].point.x, data[1].point.y,
+							data[2].point.x, data[2].point.y,
+							data[3].point.x, data[3].point.y );
+					area += curve_area(
+							x, y,
+							data[1].point.x, data[1].point.y,
+							data[2].point.x, data[2].point.y,
+							data[3].point.x, data[3].point.y );
+					x = data[3].point.x;
+					y = data[3].point.y;
+					break;
+				case CAIRO_PATH_CLOSE_PATH:
+					area_th = M_PI*w*w/4;
+					area += 0.5 * (x * y0 - y * x0);
+					blog(LOG_INFO, "CAIRO_PATH_CLOSE_PATH area=%f, w=%d %f", area, w, area_th);
+					if (area > 0 || -area > area_th)
+						draw_path_internal(cr, path, i0);
+					else
+						blog(LOG_INFO, "CAIRO_PATH_CLOSE_PATH: skip path");
+					area = 0;
+					i0 = i + path->data[i].header.length;
+					break;
+			}
+		}
+
+		cairo_stroke_preserve(cr);
+		cairo_fill(cr);
 	}
+
+	cairo_path_destroy(path);
 
 	cairo_surface_flush(cairo_get_target(cr));
 
@@ -247,7 +348,9 @@ static struct tp_texture * tp_draw_texture(struct tp_config *config, char *text)
 	}
 
 	cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-	tp_stroke_path(cr, layout, config, offset_x, offset_y, config->color, 0, 0);
+	tp_stroke_setup(cr, offset_x, offset_y, config->color);
+	pango_cairo_show_layout(cr, layout);
+	cairo_surface_flush(cairo_get_target(cr));
 
 	if (shadow_abs_x || shadow_abs_y) {
 		uint8_t *surface_shadow = bzalloc(stride * surface_height);
