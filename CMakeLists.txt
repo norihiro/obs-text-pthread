@@ -1,25 +1,18 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12)
 
-project(obs-text-pthread)
-set(CMAKE_PROJECT_VERSION 1.0.3) # TODO: update cmake to 3.12 or later and put to 'project'
+project(obs-text-pthread VERSION 1.0.3)
 
 set(PLUGIN_AUTHOR "Norihiro Kamae")
 set(MACOS_BUNDLEID "net.nagater.obs-text-pthread")
+set(MACOS_PACKAGE_UUID "652BAFE7-E356-4A3F-9505-F89615E3A44A")
+set(MACOS_INSTALLER_UUID "A4F0E91E-D759-472D-81D5-D1B0CE2CC2D8")
 set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 
 # TAKE NOTE: No need to edit things past this point
 
-set(CMAKE_PREFIX_PATH "${QTDIR}")
-
 # In case you need C++
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-if(NOT OBS_OUTPUT_DIR)
-	set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-else()
-	set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/plugins/obs-text-pango/cmake/")
-endif()
 
 find_package(PkgConfig)
 
@@ -27,25 +20,34 @@ if(PKG_CONFIG_FOUND)
 	pkg_search_module(Pango pango)
 	pkg_search_module(Cairo cairo)
 	pkg_search_module(PangoCairo pangocairo)
+	pkg_search_module(PNG libpng)
 else()
 	find_package(Pango REQUIRED)
 	find_package(Cairo REQUIRED)
 	find_package(PangoCairo REQUIRED)
+	find_package(PNG)
 endif()
-
-find_package(PNG)
-
-if (WIN32 OR APPLE)
-include(external/FindLibObs.cmake)
-endif()
-
-find_package(LibObs REQUIRED)
 
 link_directories(
 	${Pango_LIBRARY_DIRS}
 	${Cairo_LIBRARY_DIRS}
 	${PangoCairo_LIBRARY_DIRS}
 )
+
+include_directories(
+	${GLib_INCLUDE_DIRS}
+	${Pango_INCLUDE_DIRS}
+	${Cairo_INCLUDE_DIRS}
+	${PangoCairo_INCLUDE_DIRS}
+)
+
+if(PNG_FOUND)
+	include_directories(${PNG_INCLUDE_DIRS})
+	link_directories(${PNG_LIBRARY_DIRS})
+endif()
+
+find_package(libobs REQUIRED)
+include(cmake/ObsPluginHelpers.cmake)
 
 configure_file(
     src/plugin-macros.h.in
@@ -70,158 +72,39 @@ set(PLUGIN_SOURCES
 	src/obs-text-pthread-thread.c
 )
 
-set(PLUGIN_HEADERS
-	src/plugin-macros.generated.h
-	src/obs-text-pthread.h
-)
-
-# --- Platform-independent build settings ---
-add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES} ${PLUGIN_HEADERS})
-
-include_directories(
-	"${LIBOBS_INCLUDE_DIR}/../UI/obs-frontend-api"
-	${GLib_INCLUDE_DIRS}
-	${Pango_INCLUDE_DIRS}
-	${Cairo_INCLUDE_DIRS}
-	${PangoCairo_INCLUDE_DIRS}
-	${PNG_INCLUDE_DIRS}
-)
-
-message("GLib_LIBRARY=${GLib_LIBRARY}")
-message("Pango_INCLUDE_DIRS=${Pango_INCLUDE_DIRS}")
-message("Pango_LIBRARIES=${Pango_LIBRARIES}")
-message("Pango_LIBRARY_DIRS=${Pango_LIBRARY_DIRS}")
-message("Cairo_INCLUDE_DIRS=${Cairo_INCLUDE_DIRS}")
-message("Cairo_LIBRARIES=${Cairo_LIBRARIES}")
-message("Cairo_LIBRARY_DIRS=${Cairo_LIBRARY_DIRS}")
-message("PangoCairo_INCLUDE_DIRS=${PangoCairo_INCLUDE_DIRS}")
-message("PangoCairo_LIBRARIES=${PangoCairo_LIBRARIES}")
-message("PangoCairo_LIBRARY_DIRS=${PangoCairo_LIBRARY_DIRS}")
+add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES})
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
-	libobs
+	OBS::libobs
 	${OBS_LIBRARIES}
 	${Pango_LIBRARIES}
 	${Cairo_LIBRARIES}
 	${PangoCairo_LIBRARIES}
-	${PNG_LIBRARIES}
 )
 
-# --- End of section ---
+if(PNG_FOUND)
+	target_link_libraries(${CMAKE_PROJECT_NAME} ${PNG_LIBRARIES})
+endif()
 
-# --- Windows-specific build settings and tasks ---
-if(WIN32)
-	if(NOT DEFINED OBS_FRONTEND_LIB)
-		set(OBS_FRONTEND_LIB "OBS_FRONTEND_LIB-NOTFOUND" CACHE FILEPATH "OBS frontend library")
-		message(FATAL_ERROR "Could not find OBS Frontend API\'s library !")
+if(OS_WINDOWS)
+	# Enable Multicore Builds and disable FH4 (to not depend on VCRUNTIME140_1.DLL when building with VS2019)
+	if (MSVC)
+		add_definitions(/MP /d2FH4-)
 	endif()
 
-    # Enable Multicore Builds and disable FH4 (to not depend on VCRUNTIME140_1.DLL when building with VS2019)
-    if (MSVC)
-        add_definitions(/MP /d2FH4-)
-    endif()
-
-	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-		set(ARCH_NAME "64bit")
-		set(OBS_BUILDDIR_ARCH "build64")
-	else()
-		set(ARCH_NAME "32bit")
-		set(OBS_BUILDDIR_ARCH "build32")
-	endif()
-
-	include_directories(
-		"${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/UI"
-	)
-
-	target_link_libraries(${CMAKE_PROJECT_NAME}
-		"${OBS_FRONTEND_LIB}"
-    )
-
-	# --- Release package helper ---
-	# The "release" folder has a structure similar OBS' one on Windows
-	set(RELEASE_DIR "${PROJECT_SOURCE_DIR}/release")
-
-    add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
-        # If config is Release or RelWithDebInfo, package release files
-        COMMAND if $<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>==1 (
-            "${CMAKE_COMMAND}" -E make_directory
-                "${RELEASE_DIR}/data/obs-plugins/${CMAKE_PROJECT_NAME}"
-                "${RELEASE_DIR}/obs-plugins/${ARCH_NAME}"
-        )
-
-        COMMAND if $<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>==1 (
-            "${CMAKE_COMMAND}" -E copy_directory
-                "${PROJECT_SOURCE_DIR}/data"
-                "${RELEASE_DIR}/data/obs-plugins/${CMAKE_PROJECT_NAME}"
-        )
-
-        COMMAND if $<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>==1 (
-            "${CMAKE_COMMAND}" -E copy
-                "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>"
-                "${RELEASE_DIR}/obs-plugins/${ARCH_NAME}"
-        )
-
-        # If config is RelWithDebInfo, copy the pdb file
-        COMMAND if $<CONFIG:RelWithDebInfo>==1 (
-            "${CMAKE_COMMAND}" -E copy
-                "$<TARGET_PDB_FILE:${CMAKE_PROJECT_NAME}>"
-                "${RELEASE_DIR}/obs-plugins/${ARCH_NAME}"
-        )
-
-        # Copy to obs-studio dev environment for immediate testing
-        COMMAND if $<CONFIG:Debug>==1 (
-            "${CMAKE_COMMAND}" -E copy
-                "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>"
-                "${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/rundir/$<CONFIG>/obs-plugins/${ARCH_NAME}"
-        )
-
-        COMMAND if $<CONFIG:Debug>==1 (
-            "${CMAKE_COMMAND}" -E copy
-                "$<TARGET_PDB_FILE:${CMAKE_PROJECT_NAME}>"
-                "${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/rundir/$<CONFIG>/obs-plugins/${ARCH_NAME}"
-        )
-
-        COMMAND if $<CONFIG:Debug>==1 (
-            "${CMAKE_COMMAND}" -E make_directory
-                "${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/rundir/$<CONFIG>/data/obs-plugins/${CMAKE_PROJECT_NAME}"
-        )
-
-        COMMAND if $<CONFIG:Debug>==1 (
-            "${CMAKE_COMMAND}" -E copy_directory
-                "${PROJECT_SOURCE_DIR}/data"
-                "${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/rundir/$<CONFIG>/data/obs-plugins/${CMAKE_PROJECT_NAME}"
-        )
-    )
-	# --- End of sub-section ---
-
-endif()
-# --- End of section ---
-
-if(UNIX)
-	# Because my primary development target is Linux.
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall")
+	target_link_libraries(${CMAKE_PROJECT_NAME} OBS::w32-pthreads)
 endif()
 
-# --- Linux-specific build settings and tasks ---
-if(UNIX AND NOT APPLE)
-	include(GNUInstallDirs)
-
-	set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES PREFIX "")
-	target_link_libraries(${CMAKE_PROJECT_NAME} obs-frontend-api)
-
-	install(TARGETS ${CMAKE_PROJECT_NAME}
-		LIBRARY DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/obs-plugins")
-
-	install(DIRECTORY data/
-		DESTINATION "${CMAKE_INSTALL_FULL_DATAROOTDIR}/obs/obs-plugins/${CMAKE_PROJECT_NAME}")
+if(OS_LINUX)
+	target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -g -Wall -Wextra)
+	target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBVNCCLIENT_LIBRARIES})
 endif()
-# --- End of section ---
 
-# -- OS X specific build settings and tasks --
-if(APPLE)
+if(OS_MACOS)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -fvisibility=default")
 
 	set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES PREFIX "")
-	#target_link_libraries(${CMAKE_PROJECT_NAME} "${OBS_FRONTEND_LIB}")
+	configure_file(installer/installer-macOS.pkgproj.in installer-macOS.generated.pkgproj)
 endif()
-# -- End of section --
+
+setup_plugin_target(${CMAKE_PROJECT_NAME})
