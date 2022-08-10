@@ -23,8 +23,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        obs: [27, 28]
-        ubuntu: ['ubuntu-20.04', 'ubuntu-22.04']
+        obs: [27]
+        ubuntu: ['ubuntu-20.04']
     defaults:
       run:
         shell: bash
@@ -80,8 +80,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        obs: [27, 28]
-        arch: [x86_64, arm64]
+        include:
+          - obs: 27
+            arch: x86_64
+          - obs: 28
+            arch: arm64
     defaults:
       run:
         shell: bash
@@ -226,7 +229,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        obs: [27, 28]
+        obs: [27]
         arch: [x64]
     env:
       visualStudio: 'Visual Studio 17 2022'
