@@ -11,22 +11,27 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 #define debug(format, ...)
 // #define debug(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
 
-static inline uint64_t max_u64(uint64_t a, uint64_t b) { if (a>b) return a; return b; }
+static inline uint64_t max_u64(uint64_t a, uint64_t b)
+{
+	if (a > b)
+		return a;
+	return b;
+}
 
 static gs_effect_t *textalpha_effect = NULL;
 
-#define tp_data_get_color(s, c) tp_data_get_color2(s, c, c".alpha")
+#define tp_data_get_color(s, c) tp_data_get_color2(s, c, c ".alpha")
 static inline uint32_t tp_data_get_color2(obs_data_t *settings, const char *color, const char *alpha)
 {
-	return
-		((uint32_t)obs_data_get_int(settings, color) & 0xFFFFFF) |
-		((uint32_t)obs_data_get_int(settings, alpha) & 0xFF) << 24;
+	return ((uint32_t)obs_data_get_int(settings, color) & 0xFFFFFF) |
+	       ((uint32_t)obs_data_get_int(settings, alpha) & 0xFF) << 24;
 }
 
-#define tp_data_add_color(props, c, t) { \
-	obs_properties_add_color(props, c, t); \
-	obs_properties_add_int_slider(props, c".alpha", obs_module_text("Alpha"), 0, 255, 1); \
-}
+#define tp_data_add_color(props, c, t)                                                                 \
+	{                                                                                              \
+		obs_properties_add_color(props, c, t);                                                 \
+		obs_properties_add_int_slider(props, c ".alpha", obs_module_text("Alpha"), 0, 255, 1); \
+	}
 
 static const char *tp_get_name(void *unused)
 {
@@ -70,8 +75,10 @@ static void tp_destroy(void *data)
 
 	tp_config_destroy_member(&src->config);
 
-	if (src->textures) free_texture(src->textures);
-	if (src->tex_new) free_texture(src->tex_new);
+	if (src->textures)
+		free_texture(src->textures);
+	if (src->tex_new)
+		free_texture(src->tex_new);
 
 	pthread_mutex_destroy(&src->tex_mutex);
 	pthread_mutex_destroy(&src->config_mutex);
@@ -133,7 +140,8 @@ static void tp_update(void *data, obs_data_t *settings)
 	src->config.shadow_x = obs_data_get_int(settings, "shadow_x");
 	src->config.shadow_y = obs_data_get_int(settings, "shadow_y");
 
-	src->config.align_transition = obs_data_get_int(settings, "align_transition.v") | obs_data_get_int(settings, "align_transition.h");
+	src->config.align_transition = obs_data_get_int(settings, "align_transition.v") |
+				       obs_data_get_int(settings, "align_transition.h");
 
 	src->config.fadein_ms = obs_data_get_int(settings, "fadein_ms");
 	src->config.fadeout_ms = obs_data_get_int(settings, "fadeout_ms");
@@ -190,11 +198,12 @@ static void tp_get_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "align_transition.h", ALIGN_LEFT);
 }
 
-#define tp_set_visible(props, name, en) \
-{ \
-	obs_property_t *prop = obs_properties_get(props, name); \
-	if (prop) obs_property_set_visible(prop, en); \
-}
+#define tp_set_visible(props, name, en)                                 \
+	{                                                               \
+		obs_property_t *prop = obs_properties_get(props, name); \
+		if (prop)                                               \
+			obs_property_set_visible(prop, en);             \
+	}
 
 static bool tp_prop_outline_changed(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
 {
@@ -243,7 +252,8 @@ static obs_properties_t *tp_get_properties(void *unused)
 	obs_properties_add_int(props, "height", obs_module_text("Height"), 1, 16384, 1);
 	obs_properties_add_bool(props, "shrink_size", obs_module_text("Automatically shrink size"));
 
-	prop = obs_properties_add_list(props, "align", obs_module_text("Alignment"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "align", obs_module_text("Alignment"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Alignment.Left"), ALIGN_LEFT);
 	obs_property_list_add_int(prop, obs_module_text("Alignment.Center"), ALIGN_CENTER);
 	obs_property_list_add_int(prop, obs_module_text("Alignment.Right"), ALIGN_RIGHT);
@@ -253,14 +263,16 @@ static obs_properties_t *tp_get_properties(void *unused)
 
 	obs_properties_add_bool(props, "auto_dir", obs_module_text("Calculate the bidirectonal base direction"));
 
-	prop = obs_properties_add_list(props, "wrapmode", obs_module_text("Wrap text"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "wrapmode", obs_module_text("Wrap text"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Wrapmode.Word"), PANGO_WRAP_WORD);
 	obs_property_list_add_int(prop, obs_module_text("Wrapmode.Char"), PANGO_WRAP_CHAR);
 	obs_property_list_add_int(prop, obs_module_text("Wrapmode.WordChar"), PANGO_WRAP_WORD_CHAR);
 
 	obs_properties_add_int(props, "indent", obs_module_text("Indent"), -32767, 32767, 1);
 
-	prop = obs_properties_add_list(props, "ellipsize", obs_module_text("Ellipsize"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "ellipsize", obs_module_text("Ellipsize"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Ellipsize.None"), PANGO_ELLIPSIZE_NONE);
 	obs_property_list_add_int(prop, obs_module_text("Ellipsize.Start"), PANGO_ELLIPSIZE_START);
 	obs_property_list_add_int(prop, obs_module_text("Ellipsize.Middle"), PANGO_ELLIPSIZE_MIDDLE);
@@ -275,7 +287,8 @@ static obs_properties_t *tp_get_properties(void *unused)
 	tp_data_add_color(props, "outline_color", obs_module_text("Outline color"));
 	obs_properties_add_int(props, "outline_width", obs_module_text("Outline width"), 0, 65536, 1);
 	obs_properties_add_int(props, "outline_blur", obs_module_text("Outline blur"), 0, 65536, 1);
-	prop = obs_properties_add_list(props, "outline_shape", obs_module_text("Outline shape"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "outline_shape", obs_module_text("Outline shape"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Outline.Round"), OUTLINE_ROUND);
 	obs_property_list_add_int(prop, obs_module_text("Outline.Bevel"), OUTLINE_BEVEL);
 	obs_property_list_add_int(prop, obs_module_text("Outline.Rectangle"), OUTLINE_RECT);
@@ -287,12 +300,14 @@ static obs_properties_t *tp_get_properties(void *unused)
 	obs_properties_add_int(props, "shadow_x", obs_module_text("Shadow offset x"), -65536, 65536, 1);
 	obs_properties_add_int(props, "shadow_y", obs_module_text("Shadow offset y"), -65536, 65536, 1);
 
-	prop = obs_properties_add_list(props, "align_transition.h", obs_module_text("Transition alignment"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "align_transition.h", obs_module_text("Transition alignment"),
+				       OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Alignment.Left"), ALIGN_LEFT);
 	obs_property_list_add_int(prop, obs_module_text("Alignment.Center"), ALIGN_CENTER);
 	obs_property_list_add_int(prop, obs_module_text("Alignment.Right"), ALIGN_RIGHT);
 
-	prop = obs_properties_add_list(props, "align_transition.v", obs_module_text("Transition alignment"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "align_transition.v", obs_module_text("Transition alignment"),
+				       OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Alignment.Top"), ALIGN_TOP);
 	obs_property_list_add_int(prop, obs_module_text("Alignment.Center"), ALIGN_VCENTER);
 	obs_property_list_add_int(prop, obs_module_text("Alignment.Bottom"), ALIGN_BOTTOM);
@@ -305,7 +320,8 @@ static obs_properties_t *tp_get_properties(void *unused)
 
 #ifdef PNG_FOUND
 	obs_properties_add_bool(props, "save_file", obs_module_text("Save as PNG"));
-	obs_properties_add_path(props, "save_file_dir", obs_module_text("Directory to save"), OBS_PATH_DIRECTORY, NULL, NULL);
+	obs_properties_add_path(props, "save_file_dir", obs_module_text("Directory to save"), OBS_PATH_DIRECTORY, NULL,
+				NULL);
 #endif // PNG_FOUND
 
 	return props;
@@ -318,7 +334,8 @@ static uint32_t tp_get_width(void *data)
 	uint32_t w = 0;
 	struct tp_texture *t = src->textures;
 	while (t) {
-		if (w < t->width) w = t->width;
+		if (w < t->width)
+			w = t->width;
 		t = t->next;
 	}
 
@@ -346,7 +363,7 @@ static uint32_t tp_get_height(void *data)
 
 static void tp_surface_to_texture(struct tp_texture *t)
 {
-	if(t->surface && !t->tex) {
+	if (t->surface && !t->tex) {
 		const uint8_t *surface = t->surface;
 		t->tex = gs_texture_create(t->width, t->height, GS_BGRA, 1, &surface, 0);
 	}
@@ -367,31 +384,34 @@ static void tp_render(void *data, gs_effect_t *effect)
 	const int h = tp_get_height(data);
 	int xoff = 0, yoff = 0;
 
-	for (struct tp_texture *t = src->textures; t; t=t->next) {
-		if (!t->width || !t->height) continue;
-		if (t->slide_u>0 && t->slide_u > t->height) continue;
-		if (t->slide_u<0 && (-t->slide_u) > t->height) continue;
+	for (struct tp_texture *t = src->textures; t; t = t->next) {
+		if (!t->width || !t->height)
+			continue;
+		if (t->slide_u > 0 && t->slide_u > t->height)
+			continue;
+		if (t->slide_u < 0 && (-t->slide_u) > t->height)
+			continue;
 		tp_surface_to_texture(t);
-		int y0 = t->slide_u>0 ? t->slide_u : 0;
-		int y1 = t->slide_u<0 ? t->height+t->slide_u : t->height;
+		int y0 = t->slide_u > 0 ? t->slide_u : 0;
+		int y1 = t->slide_u < 0 ? t->height + t->slide_u : t->height;
 		xoff = 0;
 		if ((src->config.align_transition & ALIGN_RIGHT) && t->width < w)
 			xoff += w - t->width;
 		else if ((src->config.align_transition & ALIGN_CENTER) && t->width < w)
-			xoff += w/2 - t->width/2;
+			xoff += w / 2 - t->width / 2;
 		if (!src->config.slide_pxps) {
 			yoff = 0;
 			if ((src->config.align_transition & ALIGN_BOTTOM) && t->height != h)
 				yoff += h - t->height;
 			else if ((src->config.align_transition & ALIGN_VCENTER) && t->height != h)
-				yoff += h/2 - t->height / 2;
+				yoff += h / 2 - t->height / 2;
 		}
 		if (xoff || yoff) {
 			gs_matrix_push();
 			gs_matrix_translate3f(xoff, yoff, 0);
 		}
 		gs_effect_set_texture(gs_effect_get_param_by_name(textalpha_effect, "image"), t->tex);
-		gs_effect_set_float(gs_effect_get_param_by_name(textalpha_effect, "alpha"), t->fade_alpha/255.f);
+		gs_effect_set_float(gs_effect_get_param_by_name(textalpha_effect, "alpha"), t->fade_alpha / 255.f);
 		while (gs_effect_loop(textalpha_effect, "Draw")) {
 			gs_draw_sprite_subregion(t->tex, 0, 0, y0, t->width, y1);
 		}
@@ -428,7 +448,9 @@ static inline void tp_load_new_texture(struct tp_source *src, uint64_t lastframe
 
 			if (!tn->config_updated) {
 				tn->fadein_start_ns = lastframe_ns;
-				tn->fadein_end_ns = lastframe_ns + (tn->is_crossfade ? src->config.crossfade_ms : src->config.fadein_ms) * 1000000;
+				tn->fadein_end_ns =
+					lastframe_ns +
+					(tn->is_crossfade ? src->config.crossfade_ms : src->config.fadein_ms) * 1000000;
 			}
 
 			if (src->config.slide_pxps) {
@@ -438,13 +460,17 @@ static inline void tp_load_new_texture(struct tp_source *src, uint64_t lastframe
 				}
 				else if (src->textures) {
 					struct tp_texture *tl = src->textures;
-					while (tl->next) tl = tl->next;
-					tn->slidein_end_ns = (tl->slideout_start_ns ? tl->slideout_start_ns : lastframe_ns) + slidein_ns;
-					debug("lastframe_ns=%f %p slidein_end_ns=%f\n", lastframe_ns*1e-9, tn, tn->slidein_end_ns*1e-9);
+					while (tl->next)
+						tl = tl->next;
+					tn->slidein_end_ns =
+						(tl->slideout_start_ns ? tl->slideout_start_ns : lastframe_ns) +
+						slidein_ns;
+					debug("lastframe_ns=%f %p slidein_end_ns=%f\n", lastframe_ns * 1e-9, tn,
+					      tn->slidein_end_ns * 1e-9);
 				}
 			}
 
-			if (src->config.crossfade_ms==0 && src->config.slide_pxps==0) {
+			if (src->config.crossfade_ms == 0 && src->config.slide_pxps == 0) {
 				if (src->textures) {
 					free_texture(src->textures);
 					src->textures = NULL;
@@ -455,7 +481,7 @@ static inline void tp_load_new_texture(struct tp_source *src, uint64_t lastframe
 			// if blank texture
 
 			// mark fadeout for old textures
-			for (struct tp_texture *t=src->textures; t; t=t->next) {
+			for (struct tp_texture *t = src->textures; t; t = t->next) {
 				if (!t->fadeout_start_ns) {
 					t->fadeout_start_ns = tn->time_ns;
 					t->fadeout_end_ns = tn->time_ns + src->config.fadeout_ms * 1000000;
@@ -469,7 +495,8 @@ static inline void tp_load_new_texture(struct tp_source *src, uint64_t lastframe
 
 static struct tp_texture *tp_pop_old_textures(struct tp_texture *t, uint64_t now_ns, const struct tp_source *src)
 {
-	if (!t) return NULL;
+	if (!t)
+		return NULL;
 
 	bool deprecated = false;
 	if (t->fadeout_end_ns)
@@ -491,12 +518,7 @@ static struct tp_texture *tp_pop_old_textures(struct tp_texture *t, uint64_t now
 
 	if (deprecated && !transition_ongoing) {
 		debug("tp_pop_old_textures: removing %p fadeout_end=%f slideout_start=%f slide_u=%d height=%d now=%f\n",
-				t,
-				t->fadeout_end_ns*1e-9,
-				t->slideout_start_ns*1e-9,
-				t->slide_u, t->height,
-				now_ns*1e-9
-				);
+		      t, t->fadeout_end_ns * 1e-9, t->slideout_start_ns * 1e-9, t->slide_u, t->height, now_ns * 1e-9);
 		t = popfront_texture(t);
 		return tp_pop_old_textures(t, now_ns, src);
 	}
@@ -511,7 +533,7 @@ static void tp_tick(void *data, float seconds)
 	struct tp_source *src = data;
 
 	uint64_t now_ns = os_gettime_ns();
-	uint64_t lastframe_ns = now_ns - (uint64_t)(seconds*1e9);
+	uint64_t lastframe_ns = now_ns - (uint64_t)(seconds * 1e9);
 
 	src->textures = tp_pop_old_textures(src->textures, now_ns, src);
 
@@ -519,54 +541,62 @@ static void tp_tick(void *data, float seconds)
 		// early notification for the new non-blank texture from the thread
 
 		// mark fadeout for old textures
-		if (src->config.crossfade_ms > 0) for (struct tp_texture *t=src->textures; t; t=t->next) {
-			if (!t->fadeout_start_ns) {
-				t->fadeout_start_ns = lastframe_ns;
-				t->fadeout_end_ns = lastframe_ns + src->config.crossfade_ms * 1000000;
+		if (src->config.crossfade_ms > 0)
+			for (struct tp_texture *t = src->textures; t; t = t->next) {
+				if (!t->fadeout_start_ns) {
+					t->fadeout_start_ns = lastframe_ns;
+					t->fadeout_end_ns = lastframe_ns + src->config.crossfade_ms * 1000000;
+				}
 			}
-		}
 
 		if (src->config.slide_pxps) {
 			uint64_t slideout_end_last = lastframe_ns;
-			for (struct tp_texture *t=src->textures; t; t=t->next) {
+			for (struct tp_texture *t = src->textures; t; t = t->next) {
 				if (!t->slideout_start_ns) {
 					t->slideout_start_ns = max_u64(t->slidein_end_ns, slideout_end_last);
-					debug("now_ns=%f %p slideout_start_ns=%f slidein_end_ns=%f slideout_end_last=%f \n", now_ns*1e-9, t, t->slideout_start_ns*1e-9, t->slidein_end_ns*1e-9, slideout_end_last*1e-9);
+					debug("now_ns=%f %p slideout_start_ns=%f slidein_end_ns=%f slideout_end_last=%f \n",
+					      now_ns * 1e-9, t, t->slideout_start_ns * 1e-9, t->slidein_end_ns * 1e-9,
+					      slideout_end_last * 1e-9);
 				}
-				slideout_end_last = t->slideout_start_ns + t->height * 1000000000LL / src->config.slide_pxps;
-				debug("now_ns=%f %p slideout_end_last=%f slidetime=%f\n", now_ns*1e-9, t, slideout_end_last*1e-9, t->height*1e0/src->config.slide_pxps);
+				slideout_end_last =
+					t->slideout_start_ns + t->height * 1000000000LL / src->config.slide_pxps;
+				debug("now_ns=%f %p slideout_end_last=%f slidetime=%f\n", now_ns * 1e-9, t,
+				      slideout_end_last * 1e-9, t->height * 1e0 / src->config.slide_pxps);
 			}
 		}
 
 		os_atomic_set_bool(&src->text_updating, false);
 	}
 
-	if (pthread_mutex_trylock(&src->tex_mutex)==0) {
+	if (pthread_mutex_trylock(&src->tex_mutex) == 0) {
 		tp_load_new_texture(src, lastframe_ns);
 		pthread_mutex_unlock(&src->tex_mutex);
 	}
 
-	if (src->config.slide_pxps) for (struct tp_texture *t=src->textures; t; t=t->next) {
-		if (t->slidein_end_ns) {
-			if (now_ns >= t->slidein_end_ns) {
-				t->slidein_end_ns = 0;
-				t->slide_u = 0;
+	if (src->config.slide_pxps)
+		for (struct tp_texture *t = src->textures; t; t = t->next) {
+			if (t->slidein_end_ns) {
+				if (now_ns >= t->slidein_end_ns) {
+					t->slidein_end_ns = 0;
+					t->slide_u = 0;
+				}
+				else
+					t->slide_u = -(int64_t)((t->slidein_end_ns - now_ns) * src->config.slide_pxps /
+								1000000000);
 			}
-			else
-				t->slide_u = -(int64_t)((t->slidein_end_ns - now_ns) * src->config.slide_pxps / 1000000000);
+
+			if (!t->slidein_end_ns && t->slideout_start_ns && now_ns > t->slideout_start_ns)
+				t->slide_u =
+					(int64_t)(now_ns - t->slideout_start_ns) * src->config.slide_pxps / 1000000000;
+
+			t->slide_h = t->height - abs(t->slide_u);
+			if (t->slide_h < 0)
+				t->slide_h = 0;
 		}
-
-		if (!t->slidein_end_ns && t->slideout_start_ns && now_ns > t->slideout_start_ns)
-			t->slide_u = (int64_t)(now_ns - t->slideout_start_ns) * src->config.slide_pxps / 1000000000;
-
-		t->slide_h = t->height - abs(t->slide_u);
-		if (t->slide_h<0)
-			t->slide_h = 0;
-	}
 
 	src->textures = tp_pop_old_textures(src->textures, now_ns, src);
 
-	for (struct tp_texture *t=src->textures; t; t=t->next) {
+	for (struct tp_texture *t = src->textures; t; t = t->next) {
 
 		// cleanup fadein
 		if (t->fadein_start_ns && now_ns >= t->fadein_end_ns) {
@@ -579,15 +609,18 @@ static void tp_tick(void *data, float seconds)
 			fade_alpha = 255 * (now_ns - t->fadein_start_ns) / (t->fadein_end_ns - t->fadein_start_ns);
 		}
 
-		if(t->fadeout_end_ns && now_ns >= t->fadeout_end_ns) {
+		if (t->fadeout_end_ns && now_ns >= t->fadeout_end_ns) {
 			fade_alpha = 0;
 		}
-		else if(t->fadeout_start_ns) {
-			fade_alpha = fade_alpha * (t->fadeout_end_ns - now_ns) / (t->fadeout_end_ns - t->fadeout_start_ns);
+		else if (t->fadeout_start_ns) {
+			fade_alpha =
+				fade_alpha * (t->fadeout_end_ns - now_ns) / (t->fadeout_end_ns - t->fadeout_start_ns);
 		}
 
-		if (fade_alpha < 0) fade_alpha = 0;
-		else if(fade_alpha > 255) fade_alpha = 255;
+		if (fade_alpha < 0)
+			fade_alpha = 0;
+		else if (fade_alpha > 255)
+			fade_alpha = 255;
 		t->fade_alpha = fade_alpha;
 	}
 }

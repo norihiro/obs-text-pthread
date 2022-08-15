@@ -110,7 +110,11 @@ struct tp_source
 void tp_thread_start(struct tp_source *src);
 void tp_thread_end(struct tp_source *src);
 
-#define BFREE_IF_NONNULL(x) if (x) { bfree(x); (x) = NULL; }
+#define BFREE_IF_NONNULL(x) \
+	if (x) {            \
+		bfree(x);   \
+		(x) = NULL; \
+	}
 
 static inline void tp_config_destroy_member(struct tp_config *c)
 {
@@ -123,19 +127,21 @@ static inline void tp_config_destroy_member(struct tp_config *c)
 #endif // PNG_FOUND
 }
 
-
 static inline void free_texture(struct tp_texture *t)
 {
 	if (t->tex) {
 		obs_enter_graphics();
 		for (struct tp_texture *i = t; i; i = i->next) {
-			if (i->tex) gs_texture_destroy(i->tex);
+			if (i->tex)
+				gs_texture_destroy(i->tex);
 			i->tex = NULL;
 		}
 		obs_leave_graphics();
 	}
-	if (t->surface) bfree(t->surface);
-	if (t->next) free_texture(t->next);
+	if (t->surface)
+		bfree(t->surface);
+	if (t->next)
+		free_texture(t->next);
 	bfree(t);
 }
 
@@ -149,11 +155,13 @@ static inline struct tp_texture *adv_texture(struct tp_texture *t)
 
 static inline struct tp_texture *pushback_texture(struct tp_texture *dest, struct tp_texture *n)
 {
-	if(!dest)
+	if (!dest)
 		return n;
-	for (struct tp_texture *t = dest; ; t=t->next) if (!t->next) {
-		t->next = n;
-		return dest;
+	for (struct tp_texture *t = dest;; t = t->next) {
+		if (!t->next) {
+			t->next = n;
+			return dest;
+		}
 	}
 }
 
