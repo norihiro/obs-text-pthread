@@ -111,3 +111,17 @@ while read dylib; do
 	}'))
 	install_name_tool "${opt_inst[@]}" -id $dylib "$dylib"
 done
+
+for pc in $dest/lib/pkgconfig/*.pc; do
+	test -L "$pc" && continue
+	sed -i -e "s;^prefix=.*;prefix=$dest;" "$pc"
+	sed -i -e "s;@@HOMEBREW_PREFIX@@/opt/[a-z]*/lib/;$dest/lib/;" "$pc"
+done
+
+export PKG_CONFIG_PATH=/usr/local/opt/arm64/lib/pkgconfig:$PKG_CONFIG_PATH
+for pkg in pango cairo pangocairo; do
+	pkg-config --cflags $pkg
+	pkg-config --libs $pkg
+done
+
+cd $dest/include && ln -s pango-1.0/pango pango
