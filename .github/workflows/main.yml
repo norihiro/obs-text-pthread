@@ -76,15 +76,17 @@ jobs:
           ls /usr/share/obs/obs-plugins/${PLUGIN_NAME}/
 
   macos_build:
-    runs-on: macos-12
     strategy:
       fail-fast: false
       matrix:
         include:
           - obs: 27
             arch: x86_64
+            host: macos-10.15
           - obs: 28
             arch: arm64
+            host: macos-11
+    runs-on: ${{ matrix.host }}
     defaults:
       run:
         shell: bash
