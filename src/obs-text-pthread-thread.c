@@ -32,7 +32,9 @@ static char *tp_load_text_file(struct tp_config *config)
 	buf[len] = 0;
 
 	fseek(fp, 0, SEEK_SET);
-	fread(buf, 1, len, fp);
+	size_t ret = fread(buf, 1, len, fp);
+	if (ret != len)
+		blog(LOG_ERROR, "Error reading a file '%s', fread returns %d", config->text_file, (int)ret);
 
 	fclose(fp);
 
