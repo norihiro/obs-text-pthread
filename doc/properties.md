@@ -149,6 +149,7 @@ The shadow has the same figure as the text and the outline and stays underneath 
 | Outline width | `outline_width` | int | 0 - 65536 | 0 |
 | Outline blur | `outline_blur` | int | 0 - 65536 | 0 |
 | Outline shape | `outline_shape` | int | | Round |
+| Outline blur with gaussian function | `outline_blur_gaussian` | bool | false, true | true |
 
 The width specifies the width of outline in pixels.
 The blur will composite several outline that have different width from `width+blur` to `width-blur`.
@@ -159,6 +160,8 @@ Outline shape takes one of these choice.
 - Bevel: The outline becomes octagonal shape at the corner.
 - Rect: The outline becomes rectangle shape at the corner.
 - Sharp: The outline becomes pointed sharp at acute corner. The maximum length of the acute corner is limited to 4 since there is no limit if the corner is super acute. Usually it should not reach the limit.
+
+When enabling blur with gaussian function, outline opacity is controlled by the gaussian cumulative distribution function of the distance from the edge.
 
 See also [examples](https://github.com/norihiro/obs-text-pthread/wiki/properties#outline-shape).
 
