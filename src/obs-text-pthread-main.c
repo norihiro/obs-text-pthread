@@ -387,23 +387,23 @@ static void tp_render(void *data, gs_effect_t *effect)
 	for (struct tp_texture *t = src->textures; t; t = t->next) {
 		if (!t->width || !t->height)
 			continue;
-		if (t->slide_u > 0 && t->slide_u > t->height)
+		if (t->slide_u > 0 && t->slide_u > (int)t->height)
 			continue;
-		if (t->slide_u < 0 && (-t->slide_u) > t->height)
+		if (t->slide_u < 0 && (-t->slide_u) > (int)t->height)
 			continue;
 		tp_surface_to_texture(t);
 		int y0 = t->slide_u > 0 ? t->slide_u : 0;
 		int y1 = t->slide_u < 0 ? t->height + t->slide_u : t->height;
 		xoff = 0;
-		if ((src->config.align_transition & ALIGN_RIGHT) && t->width < w)
+		if ((src->config.align_transition & ALIGN_RIGHT) && (int)t->width < w)
 			xoff += w - t->width;
-		else if ((src->config.align_transition & ALIGN_CENTER) && t->width < w)
+		else if ((src->config.align_transition & ALIGN_CENTER) && (int)t->width < w)
 			xoff += w / 2 - t->width / 2;
 		if (!src->config.slide_pxps) {
 			yoff = 0;
-			if ((src->config.align_transition & ALIGN_BOTTOM) && t->height != h)
+			if ((src->config.align_transition & ALIGN_BOTTOM) && (int)t->height != h)
 				yoff += h - t->height;
-			else if ((src->config.align_transition & ALIGN_VCENTER) && t->height != h)
+			else if ((src->config.align_transition & ALIGN_VCENTER) && (int)t->height != h)
 				yoff += h / 2 - t->height / 2;
 		}
 		if (xoff || yoff) {
@@ -511,9 +511,9 @@ static struct tp_texture *tp_pop_old_textures(struct tp_texture *t, uint64_t now
 		transition_ongoing = true;
 	if (t->slidein_end_ns) // TODO: remove me
 		transition_ongoing = true;
-	if (t->slideout_start_ns && t->slide_u < t->height)
+	if (t->slideout_start_ns && t->slide_u < (int)t->height)
 		transition_ongoing = true;
-	if (t->slideout_start_ns && t->next && t->slide_u < t->next->height)
+	if (t->slideout_start_ns && t->next && t->slide_u < (int)t->next->height)
 		transition_ongoing = true;
 
 	if (deprecated && !transition_ongoing) {

@@ -130,7 +130,7 @@ static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_con
 			const int k1 = k - bs2 - 1;
 
 			for (; kt <= k2; kt++) {
-				for (uint32_t i = 0; i < w; i++) {
+				for (int i = 0; i < w; i++) {
 					uint32_t s = data[(i + kt * w) * 4 + 3];
 					if (i > 0)
 						s += tt[kt % bs1][i - 1];
@@ -184,7 +184,7 @@ static inline uint32_t blend_text(uint32_t cat, uint32_t cb, uint32_t u)
 static inline void blend_shadow(uint8_t *s, const int stride, const uint32_t h, const uint8_t *ss, uint32_t cs)
 {
 	uint32_t size = h * stride;
-	for (int i = 0, k = 0; i < size; i += 4, k += 1)
+	for (uint32_t i = 0, k = 0; i < size; i += 4, k += 1)
 		if (ss[k]) {
 			uint32_t ct = s ? s[i] << 16 | s[i + 1] << 8 | s[i + 2] | s[i + 3] << 24 : 0;
 			uint32_t c = blend_text(ct, cs, ss[k]);
@@ -295,12 +295,12 @@ static struct tp_texture *tp_draw_texture(struct tp_config *config, char *text)
 		else
 			src += shadow_abs_y * stride;
 
-		for (int y = 0; y < surface_ink_height1 - shadow_abs_y; y++) {
+		for (int y = 0; y < (int)surface_ink_height1 - shadow_abs_y; y++) {
 			uint8_t *d = dst;
 			dst += stride / 4;
 			uint8_t *s = src + 3;
 			src += stride;
-			for (int x = 0; x < surface_width - shadow_abs_x; x++) {
+			for (int x = 0; x < (int)surface_width - shadow_abs_x; x++) {
 				*d = *s;
 				d += 1;
 				s += 4;
@@ -316,7 +316,7 @@ static struct tp_texture *tp_draw_texture(struct tp_config *config, char *text)
 	cairo_surface_destroy(surface);
 
 	if (config->shrink_size) {
-		uint32_t xoff = PANGO_PIXELS_FLOOR(logical_rect.x);
+		int xoff = PANGO_PIXELS_FLOOR(logical_rect.x);
 		if (xoff < 0) {
 			n->width = PANGO_PIXELS_CEIL(logical_rect.x + logical_rect.width) + outline_width_blur * 2 +
 				   shadow_abs_x;
