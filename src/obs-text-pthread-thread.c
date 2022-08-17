@@ -17,6 +17,8 @@
 #define debug(format, ...)
 // #define debug(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
 
+#define GAUSSIAN_RANGE 2
+
 static char *tp_load_text_file(struct tp_config *config)
 {
 	if (!config->text_file)
@@ -70,18 +72,36 @@ static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_con
 			   uint32_t color, int width, int blur)
 {
 	bool path_preserved = false;
+	bool blur_gaussian = config->outline_blur_gaussian;
 	const int bs = blur_step(blur);
-	int b_end = -blur;
+	int b_end = blur_gaussian ? -blur * GAUSSIAN_RANGE : -blur;
 	if (blur && b_end + width <= 0)
 		b_end = -width + 1;
-	int b_start = b_end + (2 * blur) / bs * bs;
+	int b_start = blur_gaussian ? blur * GAUSSIAN_RANGE : blur;
+	if (bs > 1)
+		b_start = b_end + (b_start - b_end + bs - 1) / bs * bs;
+	double a_prev = 0.0;
 	for (int b = b_start; b >= b_end; b -= bs) {
-		double a = u32toFA(color) * (blur ? 0.5 - b * 0.5 / blur : 1.0);
-		if (a < 1e-2 && blur)
+		double a;
+		if (!blur)
+			a = 1.0;
+		else if (blur_gaussian) {
+			int bs1 = bs ? bs + 1 : 0;
+			a = 0.5 - erff((float)(b - bs1 * 0.5f) / blur) * 0.5;
+		}
+		else
+			a = 0.5 - b * 0.5 / blur;
+		a *= u32toFA(color);
+
+		// skip this loop if quantized alpha code is same as that in the previous.
+		if (blur && (int)(a * 255 + 0.5) == (int)(a_prev * 255 + 0.5))
 			continue;
+		a_prev = a;
+
 		int w = (width + b) * 2;
 		if (w < 0)
 			break;
+
 		cairo_move_to(cr, offset_x, offset_y);
 		cairo_set_source_rgba(cr, u32toFR(color), u32toFG(color), u32toFB(color), a);
 		if (w > 0) {
@@ -203,7 +223,8 @@ static struct tp_texture *tp_draw_texture(struct tp_config *config, char *text)
 
 	int outline_width = config->outline ? config->outline_width : 0;
 	int outline_blur = config->outline ? config->outline_blur : 0;
-	int outline_width_blur = outline_width + outline_blur;
+	bool outline_blur_gaussian = config->outline_blur_gaussian;
+	int outline_width_blur = outline_width + (outline_blur_gaussian ? outline_blur * GAUSSIAN_RANGE : outline_blur);
 	if (config->outline_shape & OUTLINE_SHARP)
 		outline_width_blur *= 2;
 	int shadow_abs_x = config->shadow ? abs(config->shadow_x) : 0;

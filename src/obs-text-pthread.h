@@ -68,6 +68,7 @@ struct tp_config
 	uint32_t outline_width;
 	uint32_t outline_blur;
 	uint32_t outline_shape;
+	bool outline_blur_gaussian;
 	bool shadow;
 	uint32_t shadow_color;
 	int32_t shadow_x, shadow_y;
