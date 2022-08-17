@@ -199,6 +199,13 @@ static void tp_get_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "align_transition.h", ALIGN_LEFT);
 }
 
+static void tp_get_defaults_v2(obs_data_t *settings)
+{
+	tp_get_defaults(settings);
+
+	obs_data_set_default_bool(settings, "outline_blur_gaussian", true);
+}
+
 #define tp_set_visible(props, name, en)                                 \
 	{                                                               \
 		obs_property_t *prop = obs_properties_get(props, name); \
@@ -631,7 +638,7 @@ static void tp_tick(void *data, float seconds)
 static struct obs_source_info tp_src_info = {
 	.id = "obs_text_pthread_source",
 	.type = OBS_SOURCE_TYPE_INPUT,
-	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,
+	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_CAP_OBSOLETE,
 	.get_name = tp_get_name,
 	.create = tp_create,
 	.destroy = tp_destroy,
@@ -648,6 +655,12 @@ static struct obs_source_info tp_src_info = {
 bool obs_module_load(void)
 {
 	obs_register_source(&tp_src_info);
+
+	struct obs_source_info tp_src_info_v2 = tp_src_info;
+	tp_src_info_v2.get_defaults = tp_get_defaults_v2;
+	tp_src_info_v2.version = 2;
+	tp_src_info_v2.output_flags &= ~OBS_SOURCE_CAP_OBSOLETE;
+	obs_register_source(&tp_src_info_v2);
 
 	blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
 	return true;
