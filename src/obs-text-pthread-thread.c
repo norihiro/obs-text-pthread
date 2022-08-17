@@ -42,19 +42,19 @@ static char *tp_load_text_file(struct tp_config *config)
 
 static double u32toFR(uint32_t u)
 {
-	return (double)((u >> 0) & 0xFF) / 256.;
+	return (double)((u >> 0) & 0xFF) / 255.;
 }
 static double u32toFG(uint32_t u)
 {
-	return (double)((u >> 8) & 0xFF) / 256.;
+	return (double)((u >> 8) & 0xFF) / 255.;
 }
 static double u32toFB(uint32_t u)
 {
-	return (double)((u >> 16) & 0xFF) / 256.;
+	return (double)((u >> 16) & 0xFF) / 255.;
 }
 static double u32toFA(uint32_t u)
 {
-	return (double)((u >> 24) & 0xFF) / 256.;
+	return (double)((u >> 24) & 0xFF) / 255.;
 }
 
 static inline int blur_step(int blur)
