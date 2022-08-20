@@ -21,7 +21,9 @@ set -e
 function copy_local_dylib
 {
 	local dylib
-	otool -L $1 | awk '/^	\/usr\/local\/(opt|Cellar)\/.*\.dylib/{print $1}' |
+	t=$(mktemp)
+	otool -L $1 > $t
+	awk '/^	\/usr\/local\/(opt|Cellar)\/.*\.dylib/{print $1}' $t |
 	while read -r dylib; do
 		echo "Changing dependency $1 -> $dylib"
 		local b=$(basename $dylib)
@@ -34,6 +36,7 @@ function copy_local_dylib
 		fi
 		install_name_tool -change "$dylib" "@loader_path/../$libdir/$b" $1
 	done
+	rm -f "$t"
 }
 
 function change_obs27_libs
