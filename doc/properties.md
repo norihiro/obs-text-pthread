@@ -162,6 +162,7 @@ Outline shape takes one of these choice.
 - Sharp: The outline becomes pointed sharp at acute corner. The maximum length of the acute corner is limited to 4 since there is no limit if the corner is super acute. Usually it should not reach the limit.
 
 When enabling blur with gaussian function, outline opacity is controlled by the gaussian cumulative distribution function of the distance from the edge.
+This option is deprecated, and will be fixed to true.
 
 See also [examples](https://github.com/norihiro/obs-text-pthread/wiki/properties#outline-shape).
 
