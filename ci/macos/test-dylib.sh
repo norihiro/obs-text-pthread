@@ -17,6 +17,8 @@ function test_dylib
 	NR>=2 {
 		dylib = $1
 		sub("@loader_path", loader_path, dylib)
+		sub("/lib/../lib/", "/lib/", dylib)
+		sub("//", "/", dylib)
 		print dylib
 	}' | {
 		ret=0
