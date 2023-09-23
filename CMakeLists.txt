@@ -97,7 +97,9 @@ endif()
 
 if(OS_LINUX)
 	target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -g -Wall -Wextra)
+	target_link_options(${CMAKE_PROJECT_NAME} PRIVATE -Wl,-z,defs)
 	target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBVNCCLIENT_LIBRARIES})
+	target_link_libraries(${CMAKE_PROJECT_NAME} m)
 endif()
 
 if(OS_MACOS)
