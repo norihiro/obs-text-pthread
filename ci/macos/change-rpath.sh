@@ -23,38 +23,13 @@ function copy_local_dylib
 	local dylib
 	t=$(mktemp)
 	otool -L $1 > $t
-	awk '
-	/^	\/usr\/local\/(opt|Cellar)\/.*\.dylib/{print $1}
-	$1 ~ /^@@HOMEBREW_CELLAR@@\/.*\.dylib/{
-		pango_path = $1
-		sub("@@HOMEBREW_CELLAR@@/[^/]*/[^/]*/", "/usr/local/opt/arm64/", pango_path);
-		print $1, pango_path
-	}
-	' $t |
-	while read -r dylib pango_path; do
+	awk '/^	\/(usr\/local\/(opt|Cellar)|opt\/homebrew)\/.*\.dylib/{print $1}' $t |
+	while read -r dylib; do
 		echo "Changing dependency $1 -> $dylib"
 		local b=$(basename $dylib)
-		case "$dylib" in
-			@@HOMEBREW_CELLAR@@*.dylib)
-				dylib_path="$pango_path"
-				if ! test -f "$dylib_path"; then
-					echo "Warning: File $dylib_path not found. Searching..."
-					dylib_path=$(find /usr/local/opt/arm64/ -name "$b" | head -n 1)
-					if test -f "$dylib_path"; then
-						echo "Found $dylib_path"
-					else
-						echo "Error: $b not found."
-						exit 1
-					fi
-				fi
-				;;
-			*)
-				dylib_path="$dylib"
-				;;
-		esac
 		if test ! -e $libdir/$b; then
 			mkdir -p $libdir
-			cp $dylib_path $libdir
+			cp $dylib $libdir
 			chmod +rwx $libdir/$b
 			install_name_tool -id "@loader_path/$b" $libdir/$b
 			copy_local_dylib $libdir/$b

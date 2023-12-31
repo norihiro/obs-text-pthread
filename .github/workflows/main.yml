@@ -176,7 +176,9 @@ jobs:
           OBS_QT_VERSION_MAJOR=${{ steps.obsdeps.outputs.OBS_QT_VERSION_MAJOR }}
           GIT_TAG=$(git describe --tags --always)
           PKG_SUFFIX=-${GIT_TAG}-obs${{ matrix.obs }}-macos-${{ matrix.arch }}
-          export PKG_CONFIG_PATH=/usr/local/opt/arm64/lib/pkgconfig:$deps/lib/pkgconfig:/usr/local/lib/pkgconfig/:$PKG_CONFIG_PATH # for arm64
+          if test "$arch" = 'arm64'; then
+            export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:$PKG_CONFIG_PATH"
+          fi
           set -e
           case "${{ matrix.obs }}" in
             27)
