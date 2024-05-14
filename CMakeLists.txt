@@ -6,6 +6,7 @@ set(PLUGIN_AUTHOR "Norihiro Kamae")
 set(MACOS_BUNDLEID "net.nagater.obs-text-pthread")
 set(MACOS_PACKAGE_UUID "652BAFE7-E356-4A3F-9505-F89615E3A44A")
 set(MACOS_INSTALLER_UUID "A4F0E91E-D759-472D-81D5-D1B0CE2CC2D8")
+set(PLUGIN_URL "https://obsproject.com/forum/resources/pthread-text.1287/")
 set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 
 # TAKE NOTE: No need to edit things past this point
