@@ -42,19 +42,30 @@ static const char *tp_get_name(void *unused)
 
 static void tp_update(void *data, obs_data_t *settings);
 
+static void initialize_textalpha_effect()
+{
+	const char *filename = "textalpha.effect";
+	char *f = obs_module_file(filename);
+	if (!f) {
+		blog(LOG_ERROR, "Cannot find module file '%s'", filename);
+		return;
+	}
+
+	textalpha_effect = gs_effect_create_from_file(f, NULL);
+	if (!textalpha_effect)
+		blog(LOG_ERROR, "Cannot load '%s'", f);
+
+	bfree(f);
+}
+
 static void *tp_create(obs_data_t *settings, obs_source_t *source)
 {
 	UNUSED_PARAMETER(source);
 	struct tp_source *src = bzalloc(sizeof(struct tp_source));
 
 	obs_enter_graphics();
-	if (!textalpha_effect) {
-		char *f = obs_module_file("textalpha.effect");
-		textalpha_effect = gs_effect_create_from_file(f, NULL);
-		if (!textalpha_effect)
-			blog(LOG_ERROR, "Cannot load '%s'", f);
-		bfree(f);
-	}
+	if (!textalpha_effect)
+		initialize_textalpha_effect();
 	obs_leave_graphics();
 
 	pthread_mutex_init(&src->config_mutex, NULL);
