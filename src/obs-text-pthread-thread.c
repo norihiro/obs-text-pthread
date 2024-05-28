@@ -200,7 +200,7 @@ static inline uint32_t blend_text(uint32_t cat, uint32_t cb, uint32_t u)
 	return ((a_255 / 255) << 24) |
 	       (blend_text_ch((cat >> 16) & 0xFF, (cb >> 16) & 0xFF, cat >> 24, cb >> 24, u) << 16) |
 	       (blend_text_ch((cat >> 8) & 0xFF, (cb >> 8) & 0xFF, cat >> 24, cb >> 24, u) << 8) |
-	       (blend_text_ch((cat)&0xFF, (cb)&0xFF, cat >> 24, cb >> 24, u));
+	       (blend_text_ch(cat & 0xFF, cb & 0xFF, cat >> 24, cb >> 24, u));
 }
 
 static inline void blend_shadow(uint8_t *s, const int stride, const uint32_t h, const uint8_t *ss, uint32_t cs)
