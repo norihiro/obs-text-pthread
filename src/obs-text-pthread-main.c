@@ -673,7 +673,7 @@ bool obs_module_load(void)
 	tp_src_info_v2.output_flags &= ~OBS_SOURCE_CAP_OBSOLETE;
 	obs_register_source(&tp_src_info_v2);
 
-	blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
+	blog(LOG_INFO, "plugin loaded (version %s)", PLUGIN_VERSION);
 	return true;
 }
 
