@@ -31,7 +31,7 @@ jobs:
         shell: bash
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -75,9 +75,9 @@ jobs:
           make package
           echo "FILE_NAME=$(find $PWD -name '*.deb' | head -n 1)" >> $GITHUB_ENV
       - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.artifactName }}
+          name: ${{ env.artifactName }}-linux-${{ matrix.ubuntu }}-obs${{ matrix.obs }}
           path: '${{ env.FILE_NAME }}'
       - name: Check package
         run: |
@@ -110,7 +110,7 @@ jobs:
         shell: bash
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -280,9 +280,9 @@ jobs:
           verbose: true
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.artifactName }}
+          name: ${{ env.artifactName }}-macos-${{ matrix.arch }}-obs${{ matrix.obs }}
           path: package/*
 
   windows_build:
@@ -301,7 +301,7 @@ jobs:
         shell: pwsh
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Download obs-studio
@@ -328,7 +328,7 @@ jobs:
         run: ci/windows/package-windows.cmd ${{ matrix.obs }}
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.artifactName }}
+          name: ${{ env.artifactName }}-windows-${{ matrix.arch }}-obs${{ matrix.obs }}
           path: package/*
