@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(obs-text-pthread VERSION 2.0.4
+project(obs-text-pthread VERSION 2.0.5
 	LANGUAGES C
 )
 
