@@ -104,6 +104,8 @@ jobs:
           - obs: 27
             arch: x86_64
           - obs: 28
+            arch: x86_64
+          - obs: 28
             arch: arm64
     defaults:
       run:
