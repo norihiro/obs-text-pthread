@@ -136,6 +136,8 @@ static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_con
 		cairo_surface_t *surface = cairo_get_target(cr);
 		const int w = cairo_image_surface_get_width(surface);
 		const int h = cairo_image_surface_get_height(surface);
+		if (w <= 0 || h <= 0)
+			return;
 		uint8_t *data = cairo_image_surface_get_data(surface);
 		const int bs1 = bs + 1;
 		uint32_t *tmp = bzalloc(sizeof(uint32_t) * w * bs1);
@@ -237,6 +239,12 @@ static struct tp_texture *tp_draw_texture(struct tp_config *config, char *text)
 	uint32_t surface_height = config->height + outline_width_blur * 2 + shadow_abs_y;
 
 	int stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, surface_width);
+
+	if (!surface_width || !surface_height || stride <= 0) {
+		blog(LOG_ERROR, "nothing to draw: %ux%u stride=%d", surface_width, surface_height, stride);
+		return n;
+	}
+
 	n->surface = bzalloc(stride * surface_height);
 
 	cairo_surface_t *surface = cairo_image_surface_create_for_data(n->surface, CAIRO_FORMAT_ARGB32, surface_width,
@@ -601,7 +609,7 @@ static void *tp_thread_main(void *data)
 			if (b_printable) {
 				tex = tp_draw_texture(&config_prev, text);
 #ifdef PNG_FOUND
-				if (config_prev.save_file) {
+				if (config_prev.save_file && tex->width > 0 && tex->height > 0) {
 					png_width = tex->width;
 					png_height = tex->height;
 					png_surface = bzalloc(4 * png_width * png_height);
