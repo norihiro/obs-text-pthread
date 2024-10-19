@@ -418,7 +418,8 @@ static FILE *fopen_png_list(uint64_t ns, const struct tp_config *config)
 	sprintf(fname, "%s/list-%08ds%03d.dat", config->save_file_dir, (int)(ms / 1000), (int)(ms % 1000));
 	FILE *fp = fopen(fname, "w");
 	bfree(fname);
-	png_list_write_config(fp, config, NULL);
+	if (fp)
+		png_list_write_config(fp, config, NULL);
 	return fp;
 }
 
