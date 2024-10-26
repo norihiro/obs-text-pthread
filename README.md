@@ -1,4 +1,4 @@
-# OBS Pthread Text
+# Pthread Text plugin for OBS Studio
 
 ## Introduction
 
