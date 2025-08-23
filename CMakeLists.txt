@@ -11,6 +11,8 @@ set(MACOS_INSTALLER_UUID "A4F0E91E-D759-472D-81D5-D1B0CE2CC2D8")
 set(PLUGIN_URL "https://obsproject.com/forum/resources/pthread-text.1287/")
 set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 
+option(ENABLE_COVERAGE "Enable coverage option for GCC" OFF)
+
 # TAKE NOTE: No need to edit things past this point
 
 # In case you need C++
@@ -96,6 +98,11 @@ if(OS_LINUX)
 	target_compile_options(${PROJECT_NAME} PRIVATE -g -Wall -Wextra)
 	target_link_options(${PROJECT_NAME} PRIVATE -Wl,-z,defs)
 	target_link_libraries(${PROJECT_NAME} m)
+
+	if(ENABLE_COVERAGE)
+		target_compile_options(${PROJECT_NAME} PRIVATE -coverage)
+		target_link_options(${PROJECT_NAME} PRIVATE -coverage)
+	endif()
 endif()
 
 if(OS_MACOS)
