@@ -77,7 +77,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.artifactName }}-linux-${{ matrix.ubuntu }}-obs${{ matrix.obs }}
+          name: ${{ env.artifactName }}-linux-obs${{ matrix.obs }}-${{ matrix.ubuntu }}
           path: '${{ env.FILE_NAME }}'
       - name: Check package
         run: |
@@ -283,7 +283,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.artifactName }}-macos-${{ matrix.arch }}-obs${{ matrix.obs }}
+          name: ${{ env.artifactName }}-macos-obs${{ matrix.obs }}-${{ matrix.arch }}
           path: package/*
 
   windows_build:
@@ -331,5 +331,5 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.artifactName }}-windows-${{ matrix.arch }}-obs${{ matrix.obs }}
+          name: ${{ env.artifactName }}-windows-obs${{ matrix.obs }}-${{ matrix.arch }}
           path: package/*
