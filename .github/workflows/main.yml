@@ -288,11 +288,10 @@ jobs:
 
   windows_build:
     runs-on: windows-2022
-    if: false
     strategy:
       fail-fast: false
       matrix:
-        obs: [27]
+        obs: [31]
         arch: [x64]
     env:
       visualStudio: 'Visual Studio 17 2022'
@@ -307,21 +306,42 @@ jobs:
           submodules: recursive
       - name: Download obs-studio
         id: obsdeps
-        uses: norihiro/obs-studio-devel-action@v1-beta
+        uses: norihiro/obs-studio-devel-action@v2
         with:
           obs: ${{ matrix.obs }}
           qt: ${{ env.qt }}
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: ${{ github.workspace }}/.vcpkg-binary-cache
+          key: vcpkg-binary-cache-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('.github/workflows/main.yml') }}
+          restore-keys: |
+            vcpkg-binary-cache-${{ runner.os }}-${{ matrix.arch }}-
+
+      - name: Setup dependencies
+        run: |
+          mkdir -force ${{ github.workspace }}\.vcpkg-binary-cache > $null
+          $env:VCPKG_BINARY_SOURCES="files,${{ github.workspace }}\.vcpkg-binary-cache,readwrite"
+          git clone https://github.com/microsoft/vcpkg.git vcpkg
+          .\vcpkg\bootstrap-vcpkg.bat
+          .\vcpkg\vcpkg.exe install pango cairo --triplet x64-windows-static
+          .\vcpkg\vcpkg.exe install pkgconf:x64-windows
+
+      - uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/.vcpkg-binary-cache
+          key: vcpkg-binary-cache-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('.github/workflows/main.yml') }}
 
       - name: Build plugin
         run: |
           $CmakeArgs = @(
             '-G', "${{ env.visualStudio }}"
-            '-DQT_VERSION=${{ steps.obsdeps.outputs.OBS_QT_VERSION_MAJOR }}'
             '-DCMAKE_SYSTEM_VERSION=10.0.18363.657'
-            "-DCMAKE_INSTALL_PREFIX=$(Resolve-Path -Path "./obs-build-dependencies/plugin-deps-${{ matrix.arch }}")"
-            "-DCMAKE_PREFIX_PATH=$(Resolve-Path -Path "./obs-build-dependencies/plugin-deps-${{ matrix.arch }}")"
+            '-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake'
+            '-DVCPKG_TARGET_TRIPLET=x64-windows-static'
+            '-DPKG_CONFIG_EXECUTABLE=${{ github.workspace }}/vcpkg/installed/x64-windows/tools/pkgconf/pkgconf.exe'
           )
-          cmake -S . -B build @CmakeArgs
+          cmake -S . -B build ${{ steps.obsdeps.outputs.PLUGIN_CMAKE_OPTIONS_PS }} @CmakeArgs
           cmake --build build --config RelWithDebInfo -j 4
           cmake --install build --config RelWithDebInfo --prefix "$(Resolve-Path -Path .)/release"
 
