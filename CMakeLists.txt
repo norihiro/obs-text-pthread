@@ -22,33 +22,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(PkgConfig)
 
 if(PKG_CONFIG_FOUND)
-	pkg_search_module(Pango pango)
-	pkg_search_module(Cairo cairo)
-	pkg_search_module(PangoCairo pangocairo)
-	pkg_search_module(PNG libpng)
+	pkg_check_modules(PangoCairo REQUIRED IMPORTED_TARGET pangocairo)
+	pkg_check_modules(PNG QUIET IMPORTED_TARGET libpng)
+	add_library(PangoCairo ALIAS PkgConfig::PangoCairo)
+	if(PNG_FOUND)
+		add_library(PNG ALIAS PkgConfig::PNG)
+	endif()
 else()
 	find_package(Pango REQUIRED)
 	find_package(Cairo REQUIRED)
-	find_package(PangoCairo REQUIRED)
-	find_package(PNG)
-endif()
-
-link_directories(
-	${Pango_LIBRARY_DIRS}
-	${Cairo_LIBRARY_DIRS}
-	${PangoCairo_LIBRARY_DIRS}
-)
-
-include_directories(
-	${GLib_INCLUDE_DIRS}
-	${Pango_INCLUDE_DIRS}
-	${Cairo_INCLUDE_DIRS}
-	${PangoCairo_INCLUDE_DIRS}
-)
-
-if(PNG_FOUND)
-	include_directories(${PNG_INCLUDE_DIRS})
-	link_directories(${PNG_LIBRARY_DIRS})
+	target_link_libraries(PangoCairo INTERFACE Pango::Pango Cairo::Cairo)
 endif()
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
@@ -70,10 +53,7 @@ add_library(${PROJECT_NAME} MODULE ${PLUGIN_SOURCES})
 
 target_link_libraries(${PROJECT_NAME}
 	OBS::libobs
-	${OBS_LIBRARIES}
-	${Pango_LIBRARIES}
-	${Cairo_LIBRARIES}
-	${PangoCairo_LIBRARIES}
+	PangoCairo
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -82,7 +62,7 @@ target_include_directories(${PROJECT_NAME}
 )
 
 if(PNG_FOUND)
-	target_link_libraries(${PROJECT_NAME} ${PNG_LIBRARIES})
+	target_link_libraries(${PROJECT_NAME} PNG)
 endif()
 
 if(OS_WINDOWS)
