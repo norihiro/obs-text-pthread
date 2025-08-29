@@ -340,6 +340,7 @@ jobs:
             '-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake'
             '-DVCPKG_TARGET_TRIPLET=x64-windows-static'
             '-DPKG_CONFIG_EXECUTABLE=${{ github.workspace }}/vcpkg/installed/x64-windows/tools/pkgconf/pkgconf.exe'
+            '-DCMAKE_BUILD_TYPE=RelWithDebInfo'
           )
           cmake -S . -B build ${{ steps.obsdeps.outputs.PLUGIN_CMAKE_OPTIONS_PS }} @CmakeArgs
           cmake --build build --config RelWithDebInfo -j 4
