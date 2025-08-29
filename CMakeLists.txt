@@ -109,6 +109,10 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	)
 
 	configure_file(
+		ci/ci_includes.cmd.in
+		ci/ci_includes.generated.cmd
+	)
+	configure_file(
 	    installer/installer-Windows.iss.in
 	    installer-Windows.generated.iss
 	)
