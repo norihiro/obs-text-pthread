@@ -146,14 +146,6 @@ static inline void free_texture(struct tp_texture *t)
 	bfree(t);
 }
 
-static inline struct tp_texture *adv_texture(struct tp_texture *t)
-{
-	struct tp_texture *n = t->next;
-	t->next = NULL;
-	free_texture(t);
-	return n;
-}
-
 static inline struct tp_texture *pushback_texture(struct tp_texture *dest, struct tp_texture *n)
 {
 	if (!dest)
