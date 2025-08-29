@@ -332,6 +332,11 @@ jobs:
           path: ${{ github.workspace }}/.vcpkg-binary-cache
           key: vcpkg-binary-cache-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('.github/workflows/main.yml') }}
 
+      - name: Remove obs- prefix
+        shell: bash
+        run: |
+          sed -i -e 's;project(obs-;project(;' CMakeLists.txt
+
       - name: Build plugin
         run: |
           $CmakeArgs = @(
