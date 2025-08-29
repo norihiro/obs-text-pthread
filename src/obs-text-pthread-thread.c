@@ -4,8 +4,9 @@
 #include <util/threading.h>
 #include <time.h>
 #include <sys/stat.h>
-#include <sys/time.h>
+#ifndef _WIN32
 #include <sys/resource.h>
+#endif
 #include <string.h>
 #include <pango/pangocairo.h>
 #ifdef PNG_FOUND
@@ -378,7 +379,7 @@ static struct tp_texture *tp_draw_texture(struct tp_config *config, char *text)
 	return n;
 }
 
-bool tp_compare_stat(const struct stat *a, const struct stat *b)
+static bool tp_compare_stat(const struct stat *a, const struct stat *b)
 {
 	if (a->st_ino != b->st_ino)
 		return true;
@@ -520,7 +521,9 @@ static void *tp_thread_main(void *data)
 	FILE *fp_png_list = NULL;
 #endif // PNG_FOUND
 
+#ifndef _WIN32
 	setpriority(PRIO_PROCESS, 0, 19);
+#endif
 	os_set_thread_name("text-pthread");
 
 	while (src->running) {
