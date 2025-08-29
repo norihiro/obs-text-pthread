@@ -606,8 +606,10 @@ static void tp_tick(void *data, float seconds)
 							    1000000000);
 			}
 
-			if (!t->slidein_end_ns && t->slideout_start_ns && now_ns > t->slideout_start_ns)
-				t->slide_u = (int)(now_ns - t->slideout_start_ns) * src->config.slide_pxps / 1000000000;
+			if (!t->slidein_end_ns && t->slideout_start_ns && now_ns > t->slideout_start_ns) {
+				t->slide_u =
+					(int)((now_ns - t->slideout_start_ns) * src->config.slide_pxps / 1000000000);
+			}
 
 			t->slide_h = t->height - abs(t->slide_u);
 			if (t->slide_h < 0)
