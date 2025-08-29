@@ -528,7 +528,7 @@ static void *tp_thread_main(void *data)
 #endif
 	os_set_thread_name("text-pthread");
 
-	while (src->running) {
+	while (os_atomic_load_bool(&src->running)) {
 		os_sleep_ms(33);
 
 		pthread_mutex_lock(&src->config_mutex);
@@ -682,12 +682,12 @@ static void *tp_thread_main(void *data)
 
 void tp_thread_start(struct tp_source *src)
 {
-	src->running = true;
+	os_atomic_set_bool(&src->running, true);
 	pthread_create(&src->thread, NULL, tp_thread_main, src);
 }
 
 void tp_thread_end(struct tp_source *src)
 {
-	src->running = false;
+	os_atomic_set_bool(&src->running, false);
 	pthread_join(src->thread, NULL);
 }
