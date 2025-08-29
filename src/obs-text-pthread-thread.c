@@ -423,8 +423,9 @@ static void png_list_write_config(FILE *fp, const struct tp_config *config, cons
 static FILE *fopen_png_list(uint64_t ns, const struct tp_config *config)
 {
 	uint64_t ms = ns / 1000000;
-	char *fname = bmalloc(strlen(config->save_file_dir) + 24);
-	sprintf(fname, "%s/list-%08ds%03d.dat", config->save_file_dir, (int)(ms / 1000), (int)(ms % 1000));
+	size_t n = strlen(config->save_file_dir) + 24;
+	char *fname = bmalloc(n);
+	snprintf(fname, n, "%s/list-%08ds%03d.dat", config->save_file_dir, (int)(ms / 1000), (int)(ms % 1000));
 	FILE *fp = fopen(fname, "w");
 	bfree(fname);
 	if (fp)
@@ -436,8 +437,9 @@ static void save_to_png(const uint8_t *surface, int width, int height, uint64_t 
 			const struct tp_config *config)
 {
 	uint64_t ms = ns / 1000000;
-	char *fname = bmalloc(strlen(config->save_file_dir) + 24);
-	sprintf(fname, "%s/text-%08ds%03d.png", config->save_file_dir, (int)(ms / 1000), (int)(ms % 1000));
+	size_t n = strlen(config->save_file_dir) + 24;
+	char *fname = bmalloc(n);
+	snprintf(fname, n, "%s/text-%08ds%03d.png", config->save_file_dir, (int)(ms / 1000), (int)(ms % 1000));
 	FILE *fp = fopen(fname, "wb");
 	if (!fp) {
 		blog(LOG_ERROR, "text-pthread: save_to_png: failed to open %s", fname);

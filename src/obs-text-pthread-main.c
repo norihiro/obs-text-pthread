@@ -133,33 +133,33 @@ static void tp_update(void *data, obs_data_t *settings)
 	src->config.width = (uint32_t)obs_data_get_int(settings, "width");
 	src->config.height = (uint32_t)obs_data_get_int(settings, "height");
 	src->config.shrink_size = obs_data_get_bool(settings, "shrink_size");
-	src->config.align = obs_data_get_int(settings, "align");
+	src->config.align = (uint32_t)obs_data_get_int(settings, "align");
 	src->config.auto_dir = obs_data_get_bool(settings, "auto_dir");
-	src->config.wrapmode = obs_data_get_int(settings, "wrapmode");
-	src->config.indent = obs_data_get_int(settings, "indent");
-	src->config.ellipsize = obs_data_get_int(settings, "ellipsize");
-	src->config.spacing = obs_data_get_int(settings, "spacing");
+	src->config.wrapmode = (int)obs_data_get_int(settings, "wrapmode");
+	src->config.indent = (int32_t)obs_data_get_int(settings, "indent");
+	src->config.ellipsize = (int)obs_data_get_int(settings, "ellipsize");
+	src->config.spacing = (int)obs_data_get_int(settings, "spacing");
 
 	src->config.outline = obs_data_get_bool(settings, "outline");
 	src->config.outline_color = tp_data_get_color(settings, "outline_color");
-	src->config.outline_width = obs_data_get_int(settings, "outline_width");
-	src->config.outline_blur = obs_data_get_int(settings, "outline_blur");
+	src->config.outline_width = (uint32_t)obs_data_get_int(settings, "outline_width");
+	src->config.outline_blur = (uint32_t)obs_data_get_int(settings, "outline_blur");
 	src->config.outline_blur_gaussian = obs_data_get_bool(settings, "outline_blur_gaussian");
-	src->config.outline_shape = obs_data_get_int(settings, "outline_shape");
+	src->config.outline_shape = (uint32_t)obs_data_get_int(settings, "outline_shape");
 
 	src->config.shadow = obs_data_get_bool(settings, "shadow");
 	src->config.shadow_color = tp_data_get_color(settings, "shadow_color");
-	src->config.shadow_x = obs_data_get_int(settings, "shadow_x");
-	src->config.shadow_y = obs_data_get_int(settings, "shadow_y");
+	src->config.shadow_x = (int32_t)obs_data_get_int(settings, "shadow_x");
+	src->config.shadow_y = (int32_t)obs_data_get_int(settings, "shadow_y");
 
-	src->config.align_transition = obs_data_get_int(settings, "align_transition.v") |
-				       obs_data_get_int(settings, "align_transition.h");
+	src->config.align_transition = (uint32_t)obs_data_get_int(settings, "align_transition.v") |
+				       (uint32_t)obs_data_get_int(settings, "align_transition.h");
 
-	src->config.fadein_ms = obs_data_get_int(settings, "fadein_ms");
-	src->config.fadeout_ms = obs_data_get_int(settings, "fadeout_ms");
-	src->config.crossfade_ms = obs_data_get_int(settings, "crossfade_ms");
+	src->config.fadein_ms = (uint32_t)obs_data_get_int(settings, "fadein_ms");
+	src->config.fadeout_ms = (uint32_t)obs_data_get_int(settings, "fadeout_ms");
+	src->config.crossfade_ms = (uint32_t)obs_data_get_int(settings, "crossfade_ms");
 
-	src->config.slide_pxps = obs_data_get_int(settings, "slide_pxps");
+	src->config.slide_pxps = (uint32_t)obs_data_get_int(settings, "slide_pxps");
 
 #ifdef PNG_FOUND
 	src->config.save_file = obs_data_get_bool(settings, "save_file");
@@ -429,7 +429,7 @@ static void tp_render(void *data, gs_effect_t *effect)
 		}
 		if (xoff || yoff) {
 			gs_matrix_push();
-			gs_matrix_translate3f(xoff, yoff, 0);
+			gs_matrix_translate3f((float)xoff, (float)yoff, 0);
 		}
 		gs_effect_set_texture(gs_effect_get_param_by_name(textalpha_effect, "image"), t->tex);
 		gs_effect_set_float(gs_effect_get_param_by_name(textalpha_effect, "alpha"), t->fade_alpha / 255.f);
@@ -602,13 +602,12 @@ static void tp_tick(void *data, float seconds)
 					t->slide_u = 0;
 				}
 				else
-					t->slide_u = -(int64_t)((t->slidein_end_ns - now_ns) * src->config.slide_pxps /
-								1000000000);
+					t->slide_u = -(int)((t->slidein_end_ns - now_ns) * src->config.slide_pxps /
+							    1000000000);
 			}
 
 			if (!t->slidein_end_ns && t->slideout_start_ns && now_ns > t->slideout_start_ns)
-				t->slide_u =
-					(int64_t)(now_ns - t->slideout_start_ns) * src->config.slide_pxps / 1000000000;
+				t->slide_u = (int)(now_ns - t->slideout_start_ns) * src->config.slide_pxps / 1000000000;
 
 			t->slide_h = t->height - abs(t->slide_u);
 			if (t->slide_h < 0)
@@ -627,15 +626,16 @@ static void tp_tick(void *data, float seconds)
 		int fade_alpha = 255;
 
 		if (t->fadein_start_ns) {
-			fade_alpha = 255 * (now_ns - t->fadein_start_ns) / (t->fadein_end_ns - t->fadein_start_ns);
+			fade_alpha =
+				(int)(255 * (now_ns - t->fadein_start_ns) / (t->fadein_end_ns - t->fadein_start_ns));
 		}
 
 		if (t->fadeout_end_ns && now_ns >= t->fadeout_end_ns) {
 			fade_alpha = 0;
 		}
 		else if (t->fadeout_start_ns) {
-			fade_alpha =
-				fade_alpha * (t->fadeout_end_ns - now_ns) / (t->fadeout_end_ns - t->fadeout_start_ns);
+			fade_alpha = (int)(fade_alpha * (t->fadeout_end_ns - now_ns) /
+					   (t->fadeout_end_ns - t->fadeout_start_ns));
 		}
 
 		if (fade_alpha < 0)
