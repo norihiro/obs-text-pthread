@@ -665,6 +665,43 @@ static struct obs_source_info tp_src_info = {
 	.icon_type = OBS_ICON_TYPE_TEXT,
 };
 
+static GLogWriterOutput glog_writer(GLogLevelFlags log_level, const GLogField *fields, gsize n_fields,
+				    gpointer user_data)
+{
+	(void)user_data;
+
+	int level;
+	switch (log_level) {
+	case G_LOG_FLAG_FATAL:
+	case G_LOG_LEVEL_ERROR:
+	case G_LOG_LEVEL_CRITICAL:
+		level = LOG_ERROR;
+		break;
+	case G_LOG_LEVEL_WARNING:
+		level = LOG_WARNING;
+		break;
+	case G_LOG_LEVEL_MESSAGE:
+	case G_LOG_LEVEL_INFO:
+		level = LOG_INFO;
+		break;
+	case G_LOG_LEVEL_DEBUG:
+		level = LOG_DEBUG;
+		break;
+	default:
+		level = LOG_INFO;
+	}
+
+	gchar *out = g_log_writer_format_fields(log_level, fields, n_fields, false);
+	for (gchar *p = out; *p; p++) {
+		if (*p == '\n')
+			*p = ' ';
+	}
+	blog(level, "%s", out);
+	g_free(out);
+
+	return G_LOG_WRITER_HANDLED;
+}
+
 bool obs_module_load(void)
 {
 	obs_register_source(&tp_src_info);
@@ -676,6 +713,9 @@ bool obs_module_load(void)
 	obs_register_source(&tp_src_info_v2);
 
 	blog(LOG_INFO, "plugin loaded (version %s)", PLUGIN_VERSION);
+
+	g_log_set_writer_func(glog_writer, NULL, NULL);
+
 	return true;
 }
 
