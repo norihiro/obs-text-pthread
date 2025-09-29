@@ -56,5 +56,4 @@ Recommended flow to update the text is as below.
 
 ### Furture plan
 
-* support Windows,
 * and feature requests.
