@@ -37,10 +37,10 @@ To have transition, it is recommended that the text is updated from a progam, no
 
 #### Updating text using obs-websocket
 
-You can use `SetSourceSettings` request for [obs-websocket](https://github.com/Palakis/obs-websocket/).
+You can use `SetSourceSettings` request for [obs-websocket](https://github.com/obsproject/obs-websocket/).
 Request fields will be as below for example.
 ```
-{"sourceName": "source-name", "sourceSettings": {"text": "your new text"}}
+{"inputName": "source-name", "inputSettings": {"text": "your new text"}}
 ```
 
 #### Updating text file
