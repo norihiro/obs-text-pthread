@@ -433,6 +433,30 @@ static FILE *fopen_png_list(uint64_t ns, const struct tp_config *config)
 	return fp;
 }
 
+static void error_handler(png_structp u, png_const_charp msg)
+{
+	(void)u;
+	blog(LOG_ERROR, "png: %s", msg);
+}
+
+static void warning_handler(png_structp u, png_const_charp msg)
+{
+	(void)u;
+	blog(LOG_WARNING, "png: %s", msg);
+}
+
+static png_voidp malloc_handler(png_structp u, png_size_t size)
+{
+	(void)u;
+	return bmalloc(size);
+}
+
+static void free_handler(png_structp u, png_voidp ptr)
+{
+	(void)u;
+	bfree(ptr);
+}
+
 static void save_to_png(const uint8_t *surface, int width, int height, uint64_t ns, FILE *fp_png_list,
 			const struct tp_config *config)
 {
@@ -447,14 +471,14 @@ static void save_to_png(const uint8_t *surface, int width, int height, uint64_t 
 		return;
 	}
 
-	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	png_structp png_ptr = png_create_write_struct_2(PNG_LIBPNG_VER_STRING, NULL, error_handler, warning_handler,
+							NULL, malloc_handler, free_handler);
 	if (!png_ptr) {
 		blog(LOG_ERROR, "text-pthread: save_to_png: png_create_write_struct failed");
 		fclose(fp);
 		bfree(fname);
 		return;
 	}
-	// TODO: use png_create_write_struct_2 instead so that bzalloc and bfree can check memory leak
 
 	png_infop info_ptr = png_create_info_struct(png_ptr);
 	if (!info_ptr) {
