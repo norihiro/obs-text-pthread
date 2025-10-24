@@ -7,6 +7,7 @@ Build-Depends:
  debhelper-compat (= 13),
  cmake,
  obs-studio,
+ libsimde-dev,
  libpango1.0-dev, libpng-dev
 Conflicts: obs-text-pthread
 Standards-Version: 4.6.2
