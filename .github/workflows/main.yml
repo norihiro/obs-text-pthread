@@ -320,12 +320,15 @@ jobs:
 
       - name: Setup dependencies
         run: |
+          $ErrorActionPreference = "Stop"
           mkdir -force ${{ github.workspace }}\.vcpkg-binary-cache > $null
           $env:VCPKG_BINARY_SOURCES="files,${{ github.workspace }}\.vcpkg-binary-cache,readwrite"
           git clone https://github.com/microsoft/vcpkg.git vcpkg
           .\vcpkg\bootstrap-vcpkg.bat
           .\vcpkg\vcpkg.exe install pango cairo --triplet x64-windows-static
+          if ($LASTEXITCODE) { throw }
           .\vcpkg\vcpkg.exe install pkgconf:x64-windows
+          if ($LASTEXITCODE) { throw }
 
       - uses: actions/cache/save@v4
         with:
@@ -339,6 +342,7 @@ jobs:
 
       - name: Build plugin
         run: |
+          $ErrorActionPreference = "Stop"
           $CmakeArgs = @(
             '-G', "${{ env.visualStudio }}"
             '-DCMAKE_SYSTEM_VERSION=10.0.18363.657'
