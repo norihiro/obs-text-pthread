@@ -324,6 +324,9 @@ jobs:
           mkdir -force ${{ github.workspace }}\.vcpkg-binary-cache > $null
           $env:VCPKG_BINARY_SOURCES="files,${{ github.workspace }}\.vcpkg-binary-cache,readwrite"
           git clone https://github.com/microsoft/vcpkg.git vcpkg
+          cd vcpkg
+          patch -p1 ../ci/windows/vcpkg-pango-base.patch
+          cd ..
           .\vcpkg\bootstrap-vcpkg.bat
           .\vcpkg\vcpkg.exe install pango cairo --triplet x64-windows-static
           if ($LASTEXITCODE) { throw }

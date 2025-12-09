@@ -1,0 +1,11 @@
+diff --git a/ports/pango/portfile.cmake b/ports/pango/portfile.cmake
+index 6c54d96abd..c60f7d51e3 100644
+--- a/ports/pango/portfile.cmake
++++ b/ports/pango/portfile.cmake
+@@ -1,5 +1,5 @@
+ vcpkg_from_gitlab(
+-    GITLAB_URL https://gitlab.gnome.org/
++    GITLAB_URL https://www.nagater.net/obs-studio/vcpkg-base/
+     OUT_SOURCE_PATH SOURCE_PATH
+     REPO GNOME/pango
+     REF "${VERSION}"
