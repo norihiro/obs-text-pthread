@@ -325,6 +325,7 @@ jobs:
           $env:VCPKG_BINARY_SOURCES="files,${{ github.workspace }}\.vcpkg-binary-cache,readwrite"
           git clone https://github.com/microsoft/vcpkg.git vcpkg
           .\vcpkg\bootstrap-vcpkg.bat
+          $env:VCPKG_DOWNLOAD_BASE="https://www.nagater.net/obs-studio/vcpkg-base/"
           .\vcpkg\vcpkg.exe install pango cairo --triplet x64-windows-static
           if ($LASTEXITCODE) { throw }
           .\vcpkg\vcpkg.exe install pkgconf:x64-windows
