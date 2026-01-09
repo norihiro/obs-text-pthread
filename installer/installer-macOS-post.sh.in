@@ -1,0 +1,3 @@
+#! /bin/bash
+
+rm -rf "$HOME/Library/Application Support/obs-studio/plugins/obs-@PROJECT_NAME@.plugin" || true

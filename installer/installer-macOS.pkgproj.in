@@ -497,6 +497,8 @@
 			<dict>
 				<key>POSTINSTALL_PATH</key>
 				<dict>
+					<key>PATH</key>
+					<string>@CMAKE_BINARY_DIR@/installer-macOS-post.generated.sh</string>
 					<key>PATH_TYPE</key>
 					<integer>0</integer>
 				</dict>
