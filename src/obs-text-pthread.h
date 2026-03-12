@@ -54,6 +54,7 @@ struct tp_config
 	char *text_file;
 	bool from_file;
 	bool markup;
+	int32_t tail_lines;
 	uint32_t color;
 	uint32_t width, height;
 	bool shrink_size;
