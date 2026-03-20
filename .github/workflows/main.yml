@@ -84,7 +84,10 @@ jobs:
           . build/ci/ci_includes.generated.sh
           set -ex
           sudo apt install '${{ env.FILE_NAME }}'
-          plugins_dir=/usr/lib/x86_64-linux-gnu/obs-plugins
+          case ${{ matrix.obs }} in
+            27) plugins_dir=/usr/lib/obs-plugins ;;
+            *)  plugins_dir=/usr/lib/x86_64-linux-gnu/obs-plugins;;
+          esac
           ldd $plugins_dir/${PLUGIN_NAME}.so > ldd.out
           if grep not.found ldd.out ; then
             echo "Error: unresolved shared object." >&2
