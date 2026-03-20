@@ -221,7 +221,7 @@ jobs:
 
       - name: Install Apple Developer Certificate
         if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
-        uses: apple-actions/import-codesign-certs@63fff01cd422d4b7b855d40ca1e9d34d2de9427d # v3.0.0
+        uses: apple-actions/import-codesign-certs@fe74d46e82474f87e1ba79832ad28a4013d0e33a # v6.1.0
         with:
           keychain-password: ${{ github.run_id }}
           p12-file-base64: ${{ secrets.MACOS_SIGNING_CERT }}
