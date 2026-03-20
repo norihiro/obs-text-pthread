@@ -14,10 +14,9 @@ Text plugin for OBS Studio using pango with mark-up option.
 
 %prep
 %autosetup -p1
-sed -i -e 's/project(obs-text-pthread/project(text-pthread/g' CMakeLists.txt
 
 %build
-%{cmake} -DLINUX_PORTABLE=OFF -DLINUX_RPATH=OFF
+%{cmake}
 %{cmake_build}
 
 %install

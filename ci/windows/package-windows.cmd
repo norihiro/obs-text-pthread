@@ -7,9 +7,6 @@ git describe --tags --always > package-version.txt
 set /p PackageVersion=<package-version.txt
 del package-version.txt
 
-copy ..\LICENSE          ..\release\data\obs-plugins\%PluginName%\LICENCE-%PluginName%.txt
-copy ..\deps\libebur128\COPYING ..\release\data\obs-plugins\%PluginName%\LICENCE-libebur128.txt
-
 REM Package ZIP archive
 7z a "%PluginName%-%PackageVersion%-obs%1-Windows.zip" "..\release\*"
 

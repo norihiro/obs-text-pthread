@@ -3,7 +3,6 @@ if(POLICY CMP0087)
 endif()
 
 set(OBS_STANDALONE_PLUGIN_DIR ${CMAKE_SOURCE_DIR}/release)
-set(INCLUDED_LIBOBS_CMAKE_MODULES ON)
 
 include(GNUInstallDirs)
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
@@ -27,60 +26,18 @@ endif()
 if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE
 		"RelWithDebInfo"
-		CACHE STRING
-		"OBS build type [Release, RelWithDebInfo, Debug, MinSizeRel]" FORCE)
-	set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Release RelWithDebInfo
-		Debug MinSizeRel)
+		CACHE STRING "OBS build type [Release, RelWithDebInfo, Debug, MinSizeRel]" FORCE)
+	set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Release RelWithDebInfo Debug MinSizeRel)
 endif()
-
-if(NOT QT_VERSION)
-	set(QT_VERSION
-		"5"
-		CACHE STRING "OBS Qt version [5, 6]" FORCE)
-	set_property(CACHE QT_VERSION PROPERTY STRINGS 5 6)
-endif()
-
-macro(find_qt)
-	set(oneValueArgs VERSION)
-	set(multiValueArgs COMPONENTS COMPONENTS_WIN COMPONENTS_MAC COMPONENTS_LINUX)
-	cmake_parse_arguments(FIND_QT "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-
-	if(OS_WINDOWS)
-		find_package(
-			Qt${FIND_QT_VERSION}
-			COMPONENTS ${FIND_QT_COMPONENTS} ${FIND_QT_COMPONENTS_WIN}
-			REQUIRED)
-	elseif(OS_MACOS)
-		find_package(
-			Qt${FIND_QT_VERSION}
-			COMPONENTS ${FIND_QT_COMPONENTS} ${FIND_QT_COMPONENTS_MAC}
-			REQUIRED)
-	else()
-		find_package(
-			Qt${FIND_QT_VERSION}
-			COMPONENTS ${FIND_QT_COMPONENTS} ${FIND_QT_COMPONENTS_LINUX}
-			REQUIRED)
-	endif()
-
-	if("Gui" IN_LIST FIND_QT_COMPONENTS)
-		list(APPEND FIND_QT_COMPONENTS "GuiPrivate")
-	endif()
-
-	foreach(_COMPONENT IN LISTS FIND_QT_COMPONENTS FIND_QT_COMPONENTS_WIN
-			FIND_QT_COMPONENTS_MAC FIND_QT_COMPONENTS_LINUX)
-		if(NOT TARGET Qt::${_COMPONENT} AND TARGET
-				Qt${FIND_QT_VERSION}::${_COMPONENT})
-
-			add_library(Qt::${_COMPONENT} INTERFACE IMPORTED)
-			set_target_properties(
-				Qt::${_COMPONENT} PROPERTIES INTERFACE_LINK_LIBRARIES
-				"Qt${FIND_QT_VERSION}::${_COMPONENT}")
-		endif()
-	endforeach()
-endmacro()
 
 file(RELATIVE_PATH RELATIVE_INSTALL_PATH ${CMAKE_SOURCE_DIR} ${CMAKE_INSTALL_PREFIX})
 file(RELATIVE_PATH RELATIVE_BUILD_PATH ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
+
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+	set(_ARCH_SUFFIX 64)
+else()
+	set(_ARCH_SUFFIX 32)
+endif()
 
 if(OS_MACOS)
 	set(CMAKE_OSX_ARCHITECTURES "x86_64" CACHE STRING "OBS build architecture for macOS - x86_64 required at least")
@@ -136,48 +93,26 @@ if(OS_MACOS)
 		set(MACOSX_PLUGIN_SHORT_VERSION_STRING "${MACOSX_BUNDLE_SHORT_VERSION_STRING}" PARENT_SCOPE)
 		set(MACOSX_PLUGIN_EXECUTABLE_NAME "${target}" PARENT_SCOPE)
 
-		if("${MACOSX_PLUGIN_BUNDLE_TYPE}" STREQUAL "BNDL")
-			message(STATUS "Bundle type plugin")
+		install(
+			TARGETS ${target}
+			LIBRARY DESTINATION "."
+			COMPONENT obs_plugins
+			NAMELINK_COMPONENT ${target}_Development)
 
-			install(
-				TARGETS ${target}
-				LIBRARY DESTINATION "."
-				COMPONENT obs_plugins
-				NAMELINK_COMPONENT ${target}_Development)
+		set_target_properties(
+			${target}
+			PROPERTIES
+			BUNDLE ON
+			BUNDLE_EXTENSION "plugin"
+			OUTPUT_NAME ${target}
+			MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/bundle/macOS/Plugin-Info.plist.in"
+			XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${MACOSX_PLUGIN_GUI_IDENTIFIER}"
+			XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "${OBS_BUNDLE_CODESIGN_IDENTITY}"
+			XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/bundle/macOS/entitlements.plist")
 
-			set_target_properties(
-				${target}
-				PROPERTIES
-				BUNDLE ON
-				BUNDLE_EXTENSION "plugin"
-				OUTPUT_NAME ${target}
-				MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/bundle/macOS/Plugin-Info.plist.in"
-				XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${MACOSX_PLUGIN_GUI_IDENTIFIER}"
-				XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "${OBS_BUNDLE_CODESIGN_IDENTITY}"
-				XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/bundle/macOS/entitlements.plist")
+		install_bundle_resources(${target})
 
-			install_bundle_resources(${target})
-
-			set(FIRST_DIR_SUFFIX ".plugin" PARENT_SCOPE)
-		else()
-			message(STATUS "Old type plugin")
-
-			install(
-				TARGETS ${target}
-				LIBRARY DESTINATION "${target}/bin/"
-				COMPONENT obs_plugins
-				NAMELINK_COMPONENT ${target}_Development)
-
-			if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/data)
-				install(
-					DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data/
-					DESTINATION "${target}/data/"
-					USE_SOURCE_PERMISSIONS
-					COMPONENT obs_plugins)
-			endif()
-			set(FIRST_DIR_SUFFIX "" PARENT_SCOPE)
-		endif()
-
+		set(FIRST_DIR_SUFFIX ".plugin" PARENT_SCOPE)
 	endfunction()
 
 	function(install_bundle_resources target)
@@ -197,91 +132,66 @@ if(OS_MACOS)
 		endif()
 	endfunction()
 
-else()
-	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-		set(_ARCH_SUFFIX 64)
-	else()
-		set(_ARCH_SUFFIX 32)
-	endif()
-	set(OBS_OUTPUT_DIR ${CMAKE_BINARY_DIR}/rundir)
+elseif(OS_POSIX)
+	option(LINUX_PORTABLE "Build portable version (Linux)" OFF)
 
-	if(OS_POSIX)
-		option(LINUX_PORTABLE "Build portable version (Linux)" ON)
-		option(LINUX_RPATH "Set runpath (Linux)" ON)
-		if(NOT LINUX_PORTABLE)
-			set(OBS_LIBRARY_DESTINATION ${CMAKE_INSTALL_LIBDIR})
-			set(OBS_PLUGIN_DESTINATION ${OBS_LIBRARY_DESTINATION}/obs-plugins)
-			if (LINUX_RPATH)
-				set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
-			endif()
-			set(OBS_DATA_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/obs)
-		else()
-			set(OBS_LIBRARY_DESTINATION bin/${_ARCH_SUFFIX}bit)
-			set(OBS_PLUGIN_DESTINATION obs-plugins/${_ARCH_SUFFIX}bit)
-			if (LINUX_RPATH)
-				set(CMAKE_INSTALL_RPATH "$ORIGIN/" "${CMAKE_INSTALL_PREFIX}/${OBS_LIBRARY_DESTINATION}")
-			endif()
-			set(OBS_DATA_DESTINATION "data")
-		endif()
+	if(OS_LINUX AND NOT LINUX_PORTABLE)
+		set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
+		set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${LINUX_MAINTAINER_EMAIL}")
+		set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+		set(PKG_SUFFIX "-linux-x86_64" CACHE STRING "Suffix of package name")
+		set(CPACK_PACKAGE_FILE_NAME
+			"${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}${PKG_SUFFIX}")
 
-		if(OS_LINUX)
-			set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
-			set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${LINUX_MAINTAINER_EMAIL}")
-			set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-			set(PKG_SUFFIX "-linux-x86_64" CACHE STRING "Suffix of package name")
-			set(CPACK_PACKAGE_FILE_NAME
-				"${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}${PKG_SUFFIX}")
+		set(CPACK_GENERATOR "DEB")
 
-			set(CPACK_GENERATOR "DEB")
-
-			if(NOT LINUX_PORTABLE)
-				set(CPACK_SET_DESTDIR ON)
-			endif()
-			include(CPack)
-		endif()
-	else()
-		set(OBS_LIBRARY_DESTINATION "bin/${_ARCH_SUFFIX}bit")
-		set(OBS_LIBRARY32_DESTINATION "bin/32bit")
-		set(OBS_LIBRARY64_DESTINATION "bin/64bit")
-		set(OBS_PLUGIN_DESTINATION "obs-plugins/${_ARCH_SUFFIX}bit")
-		set(OBS_PLUGIN32_DESTINATION "obs-plugins/32bit")
-		set(OBS_PLUGIN64_DESTINATION "obs-plugins/64bit")
-
-		set(OBS_DATA_DESTINATION "data")
+		set(CPACK_SET_DESTDIR ON)
+		include(CPack)
 	endif()
 
 	function(setup_plugin_target target)
+		if(NOT LINUX_PORTABLE)
+			set(PLUGIN_BIN ${CMAKE_INSTALL_LIBDIR}/obs-plugins)
+			set(PLUGIN_DATA ${CMAKE_INSTALL_DATAROOTDIR}/obs/obs-plugins/${target})
+		else()
+			set(PLUGIN_BIN ${target}/bin/${_ARCH_SUFFIX}bit)
+			set(PLUGIN_DATA ${target}/data)
+		endif()
+
 		set_target_properties(${target} PROPERTIES PREFIX "")
 
 		install(
 			TARGETS ${target}
-			RUNTIME DESTINATION "${OBS_PLUGIN_DESTINATION}"
-			COMPONENT ${target}_Runtime
-			LIBRARY DESTINATION "${OBS_PLUGIN_DESTINATION}"
-			COMPONENT ${target}_Runtime
-			NAMELINK_COMPONENT ${target}_Development)
+			RUNTIME DESTINATION "${PLUGIN_BIN}"
+			LIBRARY DESTINATION "${PLUGIN_BIN}"
+		)
 
 		install(
-			FILES $<TARGET_FILE:${target}>
-			DESTINATION $<CONFIG>/${OBS_PLUGIN_DESTINATION}
-			COMPONENT obs_rundir
-			EXCLUDE_FROM_ALL)
+			DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data/
+			DESTINATION ${PLUGIN_DATA}
+			USE_SOURCE_PERMISSIONS
+			OPTIONAL
+		)
+	endfunction()
 
-		if(OS_WINDOWS)
-			install(
-				FILES $<TARGET_PDB_FILE:${target}>
-				CONFIGURATIONS "RelWithDebInfo" "Debug"
-				DESTINATION ${OBS_PLUGIN_DESTINATION}
-				COMPONENT ${target}_Runtime
-				OPTIONAL)
+elseif(OS_WINDOWS)
+	function(setup_plugin_target target)
+		set_target_properties(${target} PROPERTIES PREFIX "")
 
-			install(
-				FILES $<TARGET_PDB_FILE:${target}>
-				CONFIGURATIONS "RelWithDebInfo" "Debug"
-				DESTINATION $<CONFIG>/${OBS_PLUGIN_DESTINATION}
-				COMPONENT obs_rundir
-				OPTIONAL EXCLUDE_FROM_ALL)
-		endif()
+		set(PLUGIN_BIN "${target}/bin/${_ARCH_SUFFIX}bit")
+		set(PLUGIN_DATA "${target}/data")
+
+		install(
+			TARGETS ${target}
+			RUNTIME DESTINATION "${PLUGIN_BIN}"
+			LIBRARY DESTINATION "${PLUGIN_BIN}"
+		)
+
+		install(
+			FILES $<TARGET_PDB_FILE:${target}>
+			CONFIGURATIONS "RelWithDebInfo" "Debug"
+			DESTINATION ${PLUGIN_BIN}
+			OPTIONAL)
 
 		if(MSVC)
 			target_link_options(
@@ -293,36 +203,13 @@ else()
 				"$<$<CONFIG:RELWITHDEBINFO>:LINKER\:/INCREMENTAL:NO>")
 		endif()
 
-		setup_target_resources(${target} obs-plugins/${target})
-
-		if(OS_WINDOWS)
-			add_custom_command(
-				TARGET ${target}
-				POST_BUILD
-				COMMAND
-				"${CMAKE_COMMAND}" -DCMAKE_INSTALL_PREFIX=${OBS_OUTPUT_DIR}
-				-DCMAKE_INSTALL_COMPONENT=obs_rundir
-				-DCMAKE_INSTALL_CONFIG_NAME=$<CONFIG> -P
-				${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
-				COMMENT "Installing to plugin rundir"
-				VERBATIM)
-		endif()
+		install(
+			DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data/
+			DESTINATION ${PLUGIN_DATA}/
+			USE_SOURCE_PERMISSIONS
+			OPTIONAL)
 	endfunction()
 
-	function(setup_target_resources target destination)
-		if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/data)
-			install(
-				DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data/
-				DESTINATION ${OBS_DATA_DESTINATION}/${destination}
-				USE_SOURCE_PERMISSIONS
-				COMPONENT obs_plugins)
-
-			install(
-				DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data
-				DESTINATION $<CONFIG>/${OBS_DATA_DESTINATION}/${destination}
-				USE_SOURCE_PERMISSIONS
-				COMPONENT obs_rundir
-				EXCLUDE_FROM_ALL)
-		endif()
-	endfunction()
+else()
+	message(FATAL_ERROR "Should not reach here.")
 endif()

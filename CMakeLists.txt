@@ -1,21 +1,20 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(obs-text-pthread VERSION 2.1.0
+project(text-pthread VERSION 2.1.0
 	LANGUAGES C
 )
 
 set(PLUGIN_AUTHOR "Norihiro Kamae")
+set(PLUGIN_URL "https://obsproject.com/forum/resources/pthread-text.1287/")
 set(MACOS_BUNDLEID "net.nagater.obs-text-pthread")
 set(MACOS_PACKAGE_UUID "652BAFE7-E356-4A3F-9505-F89615E3A44A")
 set(MACOS_INSTALLER_UUID "A4F0E91E-D759-472D-81D5-D1B0CE2CC2D8")
-set(PLUGIN_URL "https://obsproject.com/forum/resources/pthread-text.1287/")
+set(WIN_INSTALLER_UUID   "FE203133-2424-43B3-8B60-F3F280A0CD3B")
 set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 
 option(ENABLE_COVERAGE "Enable coverage option for GCC" OFF)
 
-# TAKE NOTE: No need to edit things past this point
 
-# In case you need C++
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -40,8 +39,8 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
 configure_file(
-    src/plugin-macros.h.in
-    plugin-macros.generated.h
+	src/plugin-macros.h.in
+	plugin-macros.generated.h
 )
 
 set(PLUGIN_SOURCES
@@ -72,6 +71,8 @@ if(OS_WINDOWS)
 	endif()
 
 	target_link_libraries(${PROJECT_NAME} OBS::w32-pthreads)
+
+	set(LICENSE_DESTINATION "${PROJECT_NAME}/data")
 endif()
 
 if(OS_LINUX)
@@ -79,14 +80,18 @@ if(OS_LINUX)
 	target_link_options(${PROJECT_NAME} PRIVATE -Wl,-z,defs)
 	target_link_libraries(${PROJECT_NAME} m)
 
+	set(LICENSE_DESTINATION ${CMAKE_INSTALL_DOCDIR})
+
 	if(ENABLE_COVERAGE)
-		target_compile_options(${PROJECT_NAME} PRIVATE -coverage)
+		target_compile_options(${PROJECT_NAME} PRIVATE -coverage -fprofile-update=atomic)
 		target_link_options(${PROJECT_NAME} PRIVATE -coverage)
 	endif()
 endif()
 
 if(OS_MACOS)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -fvisibility=default")
+
+	set(LICENSE_DESTINATION "${PROJECT_NAME}.plugin/Contents/Resources")
 
 	set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "")
 	set(MACOSX_PLUGIN_GUI_IDENTIFIER "${MACOS_BUNDLEID}")
@@ -99,26 +104,35 @@ if(OS_MACOS)
 	endif()
 endif()
 
+file(GENERATE OUTPUT .gitignore CONTENT "*\n")
+
 setup_plugin_target(${PROJECT_NAME})
 
+option(INSTALL_LICENSE_FILES "Install license files" ON)
+if(INSTALL_LICENSE_FILES)
+	install(FILES
+		LICENSE
+		DESTINATION ${LICENSE_DESTINATION}
+	)
+endif()
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	configure_file(
-	    ci/ci_includes.sh.in
-	    ci/ci_includes.generated.sh
+		installer/installer-Windows.iss.in
+		installer-Windows.generated.iss
+	)
+
+	configure_file(
+		ci/ci_includes.sh.in
+		ci/ci_includes.generated.sh
+	)
+	configure_file(
+		ci/ci_includes.cmd.in
+		ci/ci_includes.generated.cmd
 	)
 
 	configure_file(
 		installer/installer-macOS.pkgproj.in
 		installer-macOS.generated.pkgproj
-	)
-
-	configure_file(
-		ci/ci_includes.cmd.in
-		ci/ci_includes.generated.cmd
-	)
-	configure_file(
-	    installer/installer-Windows.iss.in
-	    installer-Windows.generated.iss
 	)
 endif()
