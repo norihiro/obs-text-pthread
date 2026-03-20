@@ -16,7 +16,7 @@ Text plugin for OBS Studio using pango with mark-up option.
 %autosetup -p1
 
 %build
-%{cmake}
+%{cmake} -DINSTALL_LICENSE_FILES:BOOL=OFF
 %{cmake_build}
 
 %install

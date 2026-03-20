@@ -15,67 +15,48 @@ on:
       - main
 
 env:
-  artifactName: ${{ contains(github.ref_name, '/') && 'docker-artifact' || github.ref_name }}-rpm
+  artifactName: ${{ contains(github.ref_name, '/') && 'docker-artifact' || github.ref_name }}
 
 jobs:
-  docker_build:
+  fedora_setup:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - fedora41
-          - fedora42
-    defaults:
-      run:
-        shell: bash
-    env:
-      target: ${{ matrix.target }}
+    outputs:
+      matrix: ${{ steps.setup.outputs.matrix }}
+    steps:
+      - id: setup
+        uses: noris-plugins-for-obs/fedora-plugin-devel/setup@main
 
+  fedora_build:
+    runs-on: ubuntu-latest
+    needs: fedora_setup
+    strategy:
+      matrix: ${{ fromJSON(needs.fedora_setup.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           submodules: recursive
+          fetch-depth: 0
 
-      - name: Generate container directory
+      - name: Check plugin version
+        id: version
         run: |
-          cp -a .github/containers/fedora-template .github/containers/$target
-          releasever="$(cut -b 7- <<< "$target")"
-          sed -i "s/%releasever%/$releasever/g" .github/containers/$target/*
+          set -e
+          version="$(git describe --tags | sed -e 's/-\([0-9]\+\)-g\([0-9a-f]\+\)$/^\1.git\2/' -e 's/-\(rc[0-9]*\)/~\1/')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Restore docker from cache
-        id: docker-cache
-        uses: actions/cache/restore@v4
+      - name: Build plugin
+        uses: noris-plugins-for-obs/fedora-plugin-devel@main
         with:
-          path: ${{ github.workspace }}/docker-cache
-          key: docker-cache-${{ matrix.target }}-${{ hashFiles(format('.github/containers/{0}/Dockerfile', matrix.target)) }}
+          dists: ${{ matrix.fedora }}
+          spec: packaging/fedora/*.spec
+          version: ${{ steps.version.outputs.version }}
+          rpmbuild_dir: fc-rpmbuild
 
-      - name: Build environment
-        if: ${{ steps.docker-cache.outputs.cache-hit != 'true' }}
-        run: |
-          docker build -t obs-plugin-build/$target .github/containers/$target
-          mkdir -p docker-cache
-          docker save obs-plugin-build/$target | gzip > docker-cache/obs-plugin-build-$target.tar.gz
-
-      - name: Save docker to cache
-        uses: actions/cache/save@v4
-        if: ${{ steps.docker-cache.outputs.cache-hit != 'true' }}
-        with:
-          path: ${{ github.workspace }}/docker-cache
-          key: docker-cache-${{ matrix.target }}-${{ hashFiles(format('.github/containers/{0}/Dockerfile', matrix.target)) }}
-
-      - name: Extract cached environment
-        if: ${{ steps.docker-cache.outputs.cache-hit == 'true' }}
-        run: |
-          zcat docker-cache/obs-plugin-build-$target.tar.gz | docker load
-
-      - name: Build package
-        run: .github/containers/$target/build.sh
-
-      - name: Upload artifact
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.artifactName }}-${{ matrix.target }}
-          path: '${{ env.FILE_NAME }}'
+          name: ${{ env.artifactName }}-fedora${{ matrix.fedora }}
+          path: |
+            fc-rpmbuild/RPMS/*/*.rpm
+            fc-rpmbuild/SRPMS/*.rpm
