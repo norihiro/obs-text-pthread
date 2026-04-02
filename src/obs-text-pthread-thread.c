@@ -69,6 +69,111 @@ static inline int blur_step(int blur)
 	return (blur / 8) | 1;
 }
 
+static void update_rect(PangoRectangle *dst, const PangoRectangle *src)
+{
+	if (src->x < dst->x) {
+		int dx = dst->x - src->x;
+		dst->x -= dx;
+		dst->width += dx;
+	}
+
+	if (src->y < dst->y) {
+		int dy = dst->y - src->y;
+		dst->y -= dy;
+		dst->height += dy;
+	}
+
+	if (src->x + src->width > dst->x + dst->width)
+		dst->width = src->x + src->width - dst->x;
+
+	if (src->y + src->height > dst->y + dst->height)
+		dst->height = src->y + src->height - dst->y;
+}
+
+static void iterate_lines(cairo_t *cr, PangoLayout *layout, const struct tp_config *config, bool do_path,
+			  PangoRectangle *ink_rect, PangoRectangle *logical_rect)
+{
+	bool need_line_select = false;
+
+	const int line_count = pango_layout_get_line_count(layout);
+	if (config->tail_lines > 0 && line_count > config->tail_lines)
+		need_line_select = true;
+
+	if (!need_line_select) {
+		if (cr) {
+			if (do_path)
+				pango_cairo_layout_path(cr, layout);
+			else
+				pango_cairo_show_layout(cr, layout);
+		}
+
+		if (ink_rect || logical_rect)
+			pango_layout_get_extents(layout, ink_rect, logical_rect);
+		return;
+	}
+
+	PangoLayoutIter *iter = pango_layout_get_iter(layout);
+	if (!iter) {
+		blog(LOG_ERROR, "pango_layout_get_iter returns NULL");
+		return;
+	}
+
+	for (int i = line_count - config->tail_lines; i > 0; i--)
+		pango_layout_iter_next_line(iter);
+
+	double origin_x = 0.0, origin_y = 0.0;
+	if (cr)
+		cairo_get_current_point(cr, &origin_x, &origin_y);
+
+	int y_offset = 0;
+	pango_layout_iter_get_line_yrange(iter, &y_offset, NULL);
+
+	bool first = true;
+
+	do {
+		PangoRectangle ir, lr;
+		PangoLayoutLine *line = pango_layout_iter_get_line_readonly(iter);
+		int baseline = pango_layout_iter_get_baseline(iter);
+		pango_layout_iter_get_line_extents(iter, &ir, &lr);
+
+		if (cr) {
+			double draw_x = lr.x / (double)PANGO_SCALE;
+			double draw_y = (baseline - y_offset) / (double)PANGO_SCALE;
+			cairo_move_to(cr, origin_x + draw_x, origin_y + draw_y);
+
+			if (do_path)
+				pango_cairo_layout_line_path(cr, line);
+			else
+				pango_cairo_show_layout_line(cr, line);
+		}
+
+		if (ink_rect || logical_rect) {
+			ir.y -= y_offset;
+			lr.y -= y_offset;
+			if (first) {
+				if (ink_rect)
+					*ink_rect = ir;
+				if (logical_rect)
+					*logical_rect = lr;
+			}
+			else {
+				if (ink_rect)
+					update_rect(ink_rect, &ir);
+				if (logical_rect)
+					update_rect(logical_rect, &lr);
+			}
+		}
+
+		first = false;
+
+	} while (pango_layout_iter_next_line(iter));
+
+	pango_layout_iter_free(iter);
+
+	if (cr)
+		cairo_move_to(cr, origin_x, origin_y);
+}
+
 static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_config *config, int offset_x, int offset_y,
 			   uint32_t color, int width, int blur)
 {
@@ -122,12 +227,12 @@ static void tp_stroke_path(cairo_t *cr, PangoLayout *layout, const struct tp_con
 				cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
 			}
 			if (!path_preserved)
-				pango_cairo_layout_path(cr, layout);
+				iterate_lines(cr, layout, config, true, NULL, NULL);
 			cairo_stroke_preserve(cr);
 			path_preserved = true;
 		}
 		else {
-			pango_cairo_show_layout(cr, layout);
+			iterate_lines(cr, layout, config, false, NULL, NULL);
 		}
 	}
 
@@ -220,7 +325,23 @@ static inline void blend_shadow(uint8_t *s, const int stride, const uint32_t h, 
 		}
 }
 
-static struct tp_texture *tp_draw_texture(struct tp_config *config, char *text)
+static const char *text_tail(const char *text, int tail_lines)
+{
+	if (tail_lines <= 0)
+		return text;
+
+	for (const char *ptr = text + strlen(text); ptr != text;) {
+		ptr--;
+		if (*ptr == '\n') {
+			if (tail_lines-- == 0)
+				return ptr + 1;
+		}
+	}
+
+	return text;
+}
+
+static struct tp_texture *tp_draw_texture(struct tp_config *config, const char *text)
 {
 	struct tp_texture *n = bzalloc(sizeof(struct tp_texture));
 
@@ -281,10 +402,19 @@ static struct tp_texture *tp_draw_texture(struct tp_config *config, char *text)
 	pango_layout_set_ellipsize(layout, config->ellipsize);
 	pango_layout_set_spacing(layout, config->spacing * PANGO_SCALE);
 
-	(config->markup ? pango_layout_set_markup : pango_layout_set_text)(layout, text, -1);
+	if (config->markup) {
+		pango_layout_set_markup(layout, text, -1);
+	}
+	else {
+		if (config->tail_lines > 0) {
+			text = text_tail(text, config->tail_lines);
+		}
+
+		pango_layout_set_text(layout, text, -1);
+	}
 
 	PangoRectangle ink_rect, logical_rect;
-	pango_layout_get_extents(layout, &ink_rect, &logical_rect);
+	iterate_lines(NULL, layout, config, false, &ink_rect, &logical_rect);
 	uint32_t surface_ink_height = PANGO_PIXELS_FLOOR(ink_rect.height) + PANGO_PIXELS_FLOOR(ink_rect.y) +
 				      outline_width_blur * 2 + shadow_abs_y;
 	uint32_t surface_ink_height1 = surface_height > surface_ink_height ? surface_ink_height : surface_height;
