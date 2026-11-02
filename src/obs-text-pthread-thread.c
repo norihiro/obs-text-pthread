@@ -4,9 +4,6 @@
 #include <util/threading.h>
 #include <time.h>
 #include <sys/stat.h>
-#ifndef _WIN32
-#include <sys/resource.h>
-#endif
 #include <string.h>
 #include <pango/pangocairo.h>
 #ifdef PNG_FOUND
@@ -523,9 +520,6 @@ static void *tp_thread_main(void *data)
 	FILE *fp_png_list = NULL;
 #endif // PNG_FOUND
 
-#ifndef _WIN32
-	setpriority(PRIO_PROCESS, 0, 19);
-#endif
 	os_set_thread_name("text-pthread");
 
 	while (os_atomic_load_bool(&src->running)) {
