@@ -108,6 +108,15 @@ for detailed description.
 | 1 | Char | wrap lines at character boundaries. |
 | 2 | WordChar | wrap lines at word boundaries, but fall back to character boundaries if there is not enough space for a full word.
 
+### Last lines
+| Name | Key | Type | Range | Default |
+| ---- | --- | ---- | ----- | ------- |
+| Last lines | `tail_lines` | int | 0 - +32767 | 0 |
+
+This property sets the number of lines to display.
+The lines are counted after the lines are wrapped.
+If the property is set to 0, all lines will be displayed.
+
 ### Indent
 | Name | Key | Type | Range | Default |
 | ---- | --- | ---- | ----- | ------- |

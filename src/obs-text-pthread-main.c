@@ -127,6 +127,7 @@ static void tp_update(void *data, obs_data_t *settings)
 		src->config.text_file = bstrdup(obs_data_get_string(settings, "text_file"));
 	}
 	src->config.markup = obs_data_get_bool(settings, "markup");
+	src->config.tail_lines = (int32_t)obs_data_get_int(settings, "tail_lines");
 
 	src->config.color = tp_data_get_color(settings, "color");
 
@@ -288,6 +289,9 @@ static obs_properties_t *tp_get_properties(void *unused)
 	obs_property_list_add_int(prop, obs_module_text("Wrapmode.Word"), PANGO_WRAP_WORD);
 	obs_property_list_add_int(prop, obs_module_text("Wrapmode.Char"), PANGO_WRAP_CHAR);
 	obs_property_list_add_int(prop, obs_module_text("Wrapmode.WordChar"), PANGO_WRAP_WORD_CHAR);
+
+	prop = obs_properties_add_int(props, "tail_lines", obs_module_text("Tail.Lines"), 0, 32767, 1);
+	obs_property_set_long_description(prop, obs_module_text("Tail.Lines.Description"));
 
 	obs_properties_add_int(props, "indent", obs_module_text("Indent"), -32767, 32767, 1);
 
